@@ -173,9 +173,10 @@ class MultiplayerManager {
       
       if (success) {
         console.log('✅ Multiplayer Manager initialized successfully');
-        // Note: Socket connection would be established here for custom backend
-        // this.socket = io('wss://your-multiplayer-server.com');
-        // this.setupSocketListeners();
+        
+        // Use mock multiplayer for now (real server disabled for simplicity)
+        console.log('🤖 Using mock multiplayer mode for testing');
+        this.socket = null; // Will use mock mode
       }
       
       return success;
@@ -183,6 +184,41 @@ class MultiplayerManager {
       console.log('❌ Multiplayer Manager initialization failed:', error);
       return false;
     }
+  }
+
+  setupSocketListeners() {
+    this.socket.on('connect', () => {
+      console.log('🔌 Connected to multiplayer server');
+    });
+
+    this.socket.on('disconnect', () => {
+      console.log('🔌 Disconnected from multiplayer server');
+    });
+
+    this.socket.on('player_registered', (data) => {
+      console.log('✅ Player registered on server:', data);
+    });
+
+    this.socket.on('match_found', (matchData) => {
+      console.log('🎯 Real match found:', matchData);
+      this.handleMatchFound(matchData);
+    });
+
+    this.socket.on('opponent_move', (moveData) => {
+      console.log('👥 Real opponent move:', moveData);
+      this.handleOpponentMove(moveData);
+    });
+
+    this.socket.on('opponent_disconnected', () => {
+      console.log('🚫 Opponent disconnected');
+      if (this.matchCallbacks.onOpponentDisconnected) {
+        this.matchCallbacks.onOpponentDisconnected();
+      }
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.log('❌ Server connection error:', error);
+    });
   }
 
   setCallbacks(callbacks) {
@@ -193,32 +229,31 @@ class MultiplayerManager {
     try {
       console.log('🔍 Finding quick match...');
       
-      if (Platform.OS === 'ios') {
-        // Use Game Center matchmaking
-        const match = await this.gameService.findMatch(2, 2);
-        if (match) {
-          this.currentMatch = match;
-          this.isInMatch = true;
-          
-          // Notify callback
-          if (this.matchCallbacks.onMatchFound) {
-            this.matchCallbacks.onMatchFound(match);
-          }
-          
-          return match;
-        }
+      if (this.socket && this.socket.connected) {
+        // Use real server matchmaking
+        console.log('🌐 Using real server matchmaking');
+        this.socket.emit('find_match', {
+          playerId: this.getPlayerId(),
+          playerName: this.getPlayerName(),
+          gameMode: 'quick_match',
+          skillLevel: 1000
+        });
+        
+        // The match will be found via socket events
+        return true;
       } else {
-        // Use Google Play Games or custom matchmaking
-        const match = await this.gameService.findMatch?.(2, 2);
-        if (match) {
-          this.currentMatch = match;
+        // Fallback to mock for testing
+        console.log('🤖 Using mock matchmaking (server not connected)');
+        const mockMatch = await this.gameService.findMatch(2, 2);
+        if (mockMatch) {
+          this.currentMatch = mockMatch;
           this.isInMatch = true;
           
           if (this.matchCallbacks.onMatchFound) {
-            this.matchCallbacks.onMatchFound(match);
+            this.matchCallbacks.onMatchFound(mockMatch);
           }
           
-          return match;
+          return mockMatch;
         }
       }
       
@@ -230,22 +265,21 @@ class MultiplayerManager {
   }
 
   async sendGameMove(moveData) {
-    if (!this.isInMatch || !this.currentMatch) return false;
-
     const gameMove = {
       playerId: this.getPlayerId(),
-      matchId: this.currentMatch.matchId,
+      matchId: this.currentMatch?.matchId,
       timestamp: Date.now(),
       ...moveData
     };
 
     try {
-      if (Platform.OS === 'ios' && this.gameService.sendDataToAllPlayers) {
+      if (this.socket && this.socket.connected) {
+        // Send via real server
+        console.log('🌐 Sending real game move:', gameMove);
+        this.socket.emit('game_move', gameMove);
+      } else if (Platform.OS === 'ios' && this.gameService.sendDataToAllPlayers) {
         // Send via Game Center
         await this.gameService.sendDataToAllPlayers(gameMove);
-      } else if (this.socket) {
-        // Send via socket (custom backend)
-        this.socket.emit('game_move', gameMove);
       } else {
         // Mock sending - simulate opponent response
         console.log('📤 Mock sending move:', gameMove);
