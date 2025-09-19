@@ -14,6 +14,8 @@ import {
   TabButton
 } from './CustomUIComponents';
 import { Images } from './ImageAssets';
+import MultiplayerManager from './MultiplayerManager';
+import { MultiplayerChainLink } from './MultiplayerComponents';
 
 const KEYBOARD_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
@@ -21,16 +23,42 @@ const KEYBOARD_ROWS = [
   ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
 ];
 
-// Common 5-letter words for fallback when API fails
-const fallbackWords = [
-  "TOWER", "BEACH", "WATER", "REACH", "HEART", "SPACE", "EARTH", "CHART",
-  "STORM", "PEACE", "CREAM", "STEAM", "MAGIC", "TRUTH", "MATCH", "TEACH",
-  "BRAVE", "SMILE", "BLAME", "SCALE", "DREAM", "WORLD", "BREAD", "TREND",
-  "MUSIC", "DANCE", "SONIC", "PANIC", "OCEAN", "FLAME", "CLEAN", "PLANE",
-  "CROWN", "LIGHT", "CLOWN", "GROWN", "PLANT", "STONE", "PLATE", "SLANT",
-  "HOUSE", "RIVER", "HORSE", "HOVER", "CHAIR", "TABLE", "CABLE", "CHASE",
-  "PHONE", "PAPER", "PHASE", "PLACE", "CLOUD", "TRACE", "CLOTH", "CLEAR"
-];
+// Comprehensive word database organized by difficulty and letter diversity
+const wordDatabase = {
+  // Easy words - common letters, familiar words
+  easy: [
+    "TOWER", "BEACH", "WATER", "REACH", "HEART", "SPACE", "EARTH", "CHART",
+    "HOUSE", "RIVER", "HORSE", "CHAIR", "TABLE", "PHONE", "PAPER", "PLACE",
+    "WORLD", "BREAD", "CLEAN", "CLEAR", "LIGHT", "PLANT", "STONE", "FLAME"
+  ],
+  
+  // Medium words - mix of common/uncommon letters
+  medium: [
+    "STORM", "PEACE", "CREAM", "STEAM", "MAGIC", "TRUTH", "MATCH", "TEACH",
+    "BRAVE", "SMILE", "BLAME", "SCALE", "DREAM", "TREND", "MUSIC", "DANCE",
+    "SONIC", "PANIC", "OCEAN", "PLANE", "CROWN", "CLOWN", "GROWN", "SLANT",
+    "SHARP", "SMART", "START", "SPORT", "SHORT", "SHIRT", "SHIFT", "SHELF"
+  ],
+  
+  // Hard words - uncommon letters, challenging combinations
+  hard: [
+    "PROXY", "QUILT", "ZEBRA", "FJORD", "WALTZ", "BLITZ", "QUIRK", "ZESTY",
+    "JUMPY", "FIZZY", "JAZZY", "DIZZY", "FUZZY", "PIZZA", "BUZZ", "FRIZZ",
+    "EXPAT", "SIXTH", "WRECK", "XERUS", "YACHT", "YOUTH", "ZONAL", "ZOWIE"
+  ],
+  
+  // Vowel-heavy words for different challenges
+  vowelHeavy: [
+    "AUDIO", "ADIEU", "OUIJA", "QUEUE", "EERIE", "OZONE", "AZURE", "AGILE",
+    "AISLE", "ALIEN", "ALIVE", "ALONE", "ARISE", "AWAKE", "EAGLE", "EARLY"
+  ],
+  
+  // Consonant clusters for complexity
+  consonantHeavy: [
+    "CRYPT", "LYMPH", "PSYCH", "GHOST", "THUMB", "CRUMB", "PLUMB", "DWELL",
+    "SWIFT", "SWIRL", "SWEPT", "SWING", "TWIST", "FROST", "TRUST", "CRUSH"
+  ]
+};
 
 export default function App() {
   // Font loading
@@ -44,10 +72,25 @@ export default function App() {
       setFontLoaded(true);
     };
     loadFont();
+    
+    // Initialize multiplayer
+    const initMultiplayer = async () => {
+      try {
+        const success = await MultiplayerManager.initialize();
+        setMultiplayerInitialized(success);
+        console.log('🎮 Multiplayer initialized:', success);
+      } catch (error) {
+        console.error('❌ Multiplayer initialization failed:', error);
+        setMultiplayerInitialized(false);
+      }
+    };
+    initMultiplayer();
   }, []);
 
   // Game state
   const [gameActive, setGameActive] = useState(false);
+  const [gameMode, setGameMode] = useState('single'); // 'single', 'multiplayer'
+  const [multiplayerInitialized, setMultiplayerInitialized] = useState(false);
   const [startWord, setStartWord] = useState('TOWER');
   const [endWord, setEndWord] = useState('BEACH');
   const [currentWord, setCurrentWord] = useState('');
@@ -100,46 +143,109 @@ export default function App() {
     }
   };
 
+  // Smart word selection algorithm for challenging and diverse puzzles
+  const selectSmartWords = (count = 2, currentRound = 1, previousWords = []) => {
+    console.log(`🧠 Smart word selection: Round ${currentRound}, Previous: ${previousWords.join(', ')}`);
+    
+    // Determine difficulty based on round progression
+    let difficultyMix;
+    if (currentRound <= 3) {
+      difficultyMix = { easy: 0.6, medium: 0.3, hard: 0.1 }; // Start easier
+    } else if (currentRound <= 7) {
+      difficultyMix = { easy: 0.3, medium: 0.5, hard: 0.2 }; // Increase difficulty
+    } else {
+      difficultyMix = { easy: 0.2, medium: 0.4, hard: 0.4 }; // High difficulty
+    }
+    
+    // Analyze previous words to avoid repetition
+    const usedLetters = new Set();
+    const usedPatterns = new Set();
+    previousWords.forEach(word => {
+      word.split('').forEach(letter => usedLetters.add(letter));
+      usedPatterns.add(word.substring(0, 2)); // Track word patterns
+      usedPatterns.add(word.substring(-2)); // Track ending patterns
+    });
+    
+    // Score words based on diversity and challenge
+    const scoreWord = (word) => {
+      let score = 0;
+      
+      // Diversity bonus - prefer words with new letters
+      const wordLetters = new Set(word.split(''));
+      const newLetters = [...wordLetters].filter(letter => !usedLetters.has(letter));
+      score += newLetters.length * 10; // +10 per new letter
+      
+      // Pattern diversity - avoid similar word patterns
+      const startPattern = word.substring(0, 2);
+      const endPattern = word.substring(-2);
+      if (!usedPatterns.has(startPattern)) score += 15;
+      if (!usedPatterns.has(endPattern)) score += 15;
+      
+      // Letter frequency challenge - prefer less common letters
+      const uncommonLetters = ['Q', 'X', 'Z', 'J', 'K', 'V', 'W', 'Y'];
+      const uncommonCount = word.split('').filter(letter => uncommonLetters.includes(letter)).length;
+      score += uncommonCount * 8; // +8 per uncommon letter
+      
+      // Vowel/consonant balance
+      const vowels = word.split('').filter(letter => 'AEIOU'.includes(letter)).length;
+      const idealVowels = 2; // Ideal 2 vowels per word
+      score += 5 - Math.abs(vowels - idealVowels) * 2; // Penalty for too many/few vowels
+      
+      return score;
+    };
+    
+    // Create candidate pool based on difficulty mix
+    const candidates = [];
+    
+    // Add words from each difficulty category
+    Object.entries(difficultyMix).forEach(([difficulty, ratio]) => {
+      const categoryWords = wordDatabase[difficulty] || [];
+      const neededCount = Math.ceil(count * ratio * 3); // Get extra for selection
+      const shuffled = [...categoryWords].sort(() => Math.random() - 0.5);
+      candidates.push(...shuffled.slice(0, neededCount));
+    });
+    
+    // Add special category words for variety
+    if (Math.random() < 0.3) { // 30% chance for vowel-heavy
+      candidates.push(...wordDatabase.vowelHeavy.slice(0, 2));
+    }
+    if (Math.random() < 0.2) { // 20% chance for consonant-heavy
+      candidates.push(...wordDatabase.consonantHeavy.slice(0, 2));
+    }
+    
+    // Score all candidates and select best ones
+    const scoredWords = candidates
+      .filter(word => !previousWords.includes(word)) // Avoid recent words
+      .map(word => ({ word, score: scoreWord(word) }))
+      .sort((a, b) => b.score - a.score); // Sort by score descending
+    
+    // Select top scoring words with some randomness
+    const selectedWords = [];
+    for (let i = 0; i < count && i < scoredWords.length; i++) {
+      // Add some randomness - pick from top 5 candidates
+      const candidateIndex = Math.floor(Math.random() * Math.min(5, scoredWords.length - i));
+      selectedWords.push(scoredWords[candidateIndex].word);
+      scoredWords.splice(candidateIndex, 1); // Remove selected word
+    }
+    
+    console.log(`🎯 Smart selection result: ${selectedWords.join(', ')}`);
+    return selectedWords;
+  };
+
   const fetchRandomWords = async (count = 2) => {
     try {
-      console.log(`🎲 Fetching ${count} random words from API`);
-      // Using a word list API to get random 5-letter words
-      const response = await fetch('https://random-words-api.vercel.app/word');
-      if (!response.ok) {
-        throw new Error('API request failed');
-      }
+      console.log(`🎲 Generating ${count} smart words`);
       
-      const data = await response.json();
-      const words = [];
+      // Use smart word selection instead of API
+      const words = selectSmartWords(count, solved + 1, [startWord, endWord].filter(Boolean));
       
-      // Try to get valid 5-letter words
-      for (let i = 0; i < count * 5; i++) { // Try multiple times to get good words
-        const wordResponse = await fetch('https://random-words-api.vercel.app/word');
-        if (wordResponse.ok) {
-          const wordData = await wordResponse.json();
-          const word = wordData[0]?.word?.toUpperCase();
-          if (word && word.length === 5 && /^[A-Z]+$/.test(word)) {
-            words.push(word);
-            if (words.length >= count) break;
-          }
-        }
-      }
-      
-      if (words.length < count) {
-        console.log('⚠️ Not enough words from API, using fallback');
-        // Fill with fallback words if needed
-        const shuffledFallback = [...fallbackWords].sort(() => Math.random() - 0.5);
-        while (words.length < count) {
-          words.push(shuffledFallback[words.length % shuffledFallback.length]);
-        }
-      }
-      
-      console.log(`✅ Got words: ${words.join(', ')}`);
+      console.log(`✅ Got smart words: ${words.join(', ')}`);
       return words;
     } catch (err) {
-      console.log(`🚨 Error fetching random words:`, err);
-      // Fallback to random words from our list
-      const shuffled = [...fallbackWords].sort(() => Math.random() - 0.5);
+      console.log(`🚨 Error in smart word generation:`, err);
+      // Fallback to simple random selection
+      const allWords = Object.values(wordDatabase).flat();
+      const shuffled = [...allWords].sort(() => Math.random() - 0.5);
       return shuffled.slice(0, count);
     }
   };
@@ -872,6 +978,16 @@ export default function App() {
                 <Text style={styles.primaryButtonText}>Start Lightning Round</Text>
               </TouchableOpacity>
               
+              {multiplayerInitialized && (
+                <TouchableOpacity 
+                  style={styles.multiplayerButton}
+                  onPress={() => setGameMode('multiplayer')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.multiplayerButtonText}>⚡ Multiplayer Battle</Text>
+                </TouchableOpacity>
+              )}
+              
               <TouchableOpacity 
                 style={styles.secondaryButton}
                 onPress={() => setShowRules(true)}
@@ -964,6 +1080,21 @@ export default function App() {
         )}
         </SafeAreaView>
       </View>
+      
+      {/* Multiplayer Mode */}
+      {gameMode === 'multiplayer' && (
+        <Modal
+          animationType="slide"
+          transparent={false}
+          visible={true}
+          onRequestClose={() => setGameMode('single')}
+        >
+          <MultiplayerChainLink
+            onBackToMenu={() => setGameMode('single')}
+            multiplayerManager={MultiplayerManager}
+          />
+        </Modal>
+      )}
     </SafeAreaProvider>
   );
 }
@@ -1566,6 +1697,20 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#1EB2E8',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  multiplayerButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    marginVertical: 8,
+    minWidth: 200,
+  },
+  multiplayerButtonText: {
+    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
