@@ -110,15 +110,10 @@ export const MultiplayerChainLink = ({ onBackToMenu, multiplayerManager }) => {
   // Animation for key press (same as single-player)
   const keyPressAnim = useRef(new Animated.Value(1)).current;
   
-  // Fire animation for round wins
-  const fireAnim = useRef(new Animated.Value(0)).current;
-  const [showFireAnimation, setShowFireAnimation] = useState(false);
-  const [fireEmojis, setFireEmojis] = useState([]);
-  
-  // Sad face animation for round losses
-  const sadAnim = useRef(new Animated.Value(0)).current;
-  const [showSadAnimation, setShowSadAnimation] = useState(false);
-  const [sadEmojis, setSadEmojis] = useState([]);
+  // Falling tiles animation for round transitions
+  const tileAnim = useRef(new Animated.Value(0)).current;
+  const [showTileAnimation, setShowTileAnimation] = useState(false);
+  const [fallingTiles, setFallingTiles] = useState([]);
   
   // Word validation cache for performance
   const wordValidationCache = useRef(new Map()).current;
@@ -309,95 +304,54 @@ export const MultiplayerChainLink = ({ onBackToMenu, multiplayerManager }) => {
     return sharedCount;
   };
 
-  // Generate random fire emojis to fill entire screen
-  const generateRandomFireEmojis = () => {
+  // Generate random falling letter tiles
+  const generateFallingTiles = () => {
     const seed = Date.now(); // Use timestamp as seed
     const random = (seed) => {
       const x = Math.sin(seed) * 10000;
       return x - Math.floor(x);
     };
     
-    const emojis = [];
-    const emojiSize = 30; // Smaller spacing for more coverage
-    const cols = Math.ceil(width / emojiSize) + 4; // Extra columns for overlap
-    const rows = Math.ceil(height / emojiSize) + 4; // Extra rows for overlap
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const tiles = [];
+    const tileSize = 65; // Same size as game tiles
+    const cols = Math.ceil(width / tileSize) + 2; // Cover screen width
+    const numTiles = cols * 8; // 8 rows worth of tiles
     
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const id = row * cols + col;
-        emojis.push({
-          id: id,
-          x: col * emojiSize + random(seed + id * 123) * 25 - 12, // Larger random offset for overlap
-          y: row * emojiSize + random(seed + id * 456) * 25 - 12,
-          delay: random(seed + id * 789) * 600, // Shorter delays for fuller effect
-          scale: 0.9 + random(seed + id * 321) * 0.6, // Larger scale range 0.9-1.5
-        });
-      }
+    for (let i = 0; i < numTiles; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      
+      tiles.push({
+        id: i,
+        letter: letters[Math.floor(random(seed + i * 234) * letters.length)], // Random letter
+        x: col * tileSize + random(seed + i * 123) * 20 - 10, // Grid position with offset
+        y: -tileSize - (row * tileSize) - random(seed + i * 456) * 100, // Start above screen
+        delay: random(seed + i * 789) * 1000, // Random delay 0-1000ms
+        scale: 0.8 + random(seed + i * 321) * 0.4, // Random scale 0.8-1.2
+        rotation: random(seed + i * 567) * 360, // Random initial rotation
+        fallSpeed: 0.8 + random(seed + i * 890) * 0.4, // Random fall speed 0.8-1.2
+      });
     }
-    return emojis;
+    
+    return tiles;
   };
 
-  // Generate random sad emojis to fill entire screen
-  const generateRandomSadEmojis = () => {
-    const seed = Date.now();
-    const random = (seed) => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
+  // Falling tiles animation function
+  const triggerTileAnimation = () => {
+    const randomTiles = generateFallingTiles();
+    setFallingTiles(randomTiles);
+    setShowTileAnimation(true);
+    tileAnim.setValue(0);
     
-    const emojis = [];
-    const emojiSize = 35; // Smaller spacing for more coverage
-    const cols = Math.ceil(width / emojiSize) + 4; // Extra columns for overlap
-    const rows = Math.ceil(height / emojiSize) + 4; // Extra rows for overlap
-    
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const id = row * cols + col;
-        emojis.push({
-          id: id,
-          x: col * emojiSize + random(seed + id * 234) * 30 - 15, // Larger random offset for overlap
-          y: row * emojiSize + random(seed + id * 567) * 30 - 15,
-          delay: random(seed + id * 890) * 500, // Shorter delays
-          scale: 0.8 + random(seed + id * 432) * 0.5, // Scale range 0.8-1.3
-        });
-      }
-    }
-    return emojis;
-  };
-
-  // Fire animation function with staggered delays
-  const triggerFireAnimation = () => {
-    const randomFireEmojis = generateRandomFireEmojis();
-    setFireEmojis(randomFireEmojis);
-    setShowFireAnimation(true);
-    fireAnim.setValue(0);
-    
-    // Simple animation that all emojis will use with their individual delays
-    Animated.timing(fireAnim, {
+    // Tiles fall down over 3 seconds
+    Animated.timing(tileAnim, {
       toValue: 1,
-      duration: 2500,
+      duration: 3000,
       useNativeDriver: true,
     }).start(() => {
-      setShowFireAnimation(false);
-      setFireEmojis([]);
-    });
-  };
-
-  // Sad animation function with staggered delays
-  const triggerSadAnimation = () => {
-    const randomSadEmojis = generateRandomSadEmojis();
-    setSadEmojis(randomSadEmojis);
-    setShowSadAnimation(true);
-    sadAnim.setValue(0);
-    
-    // Simple animation that all emojis will use with their individual delays
-    Animated.timing(sadAnim, {
-      toValue: 1,
-      duration: 2500,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowSadAnimation(false);
-      setSadEmojis([]);
+      setShowTileAnimation(false);
+      setFallingTiles([]);
     });
   };
 
@@ -563,16 +517,15 @@ export const MultiplayerChainLink = ({ onBackToMenu, multiplayerManager }) => {
     setRoundWinningWord(winningWord);
     setShowRoundResult(true);
     
-    // Update scores and trigger appropriate animation
+    // Update scores and trigger tile animation
     if (winner === 'player') {
       setPlayerScore(prev => prev + 1);
-      // Trigger fire animation for player wins
-      triggerFireAnimation();
     } else {
       setOpponentScore(prev => prev + 1);
-      // Trigger sad animation for player losses
-      triggerSadAnimation();
     }
+    
+    // Trigger falling tiles animation for all round endings
+    triggerTileAnimation();
     
     // Clear current input
     setCurrentWord('');
@@ -742,12 +695,9 @@ export const MultiplayerChainLink = ({ onBackToMenu, multiplayerManager }) => {
         showRoundResult={showRoundResult}
         roundWinner={roundWinner}
         roundWinningWord={roundWinningWord}
-        showFireAnimation={showFireAnimation}
-        fireAnim={fireAnim}
-        fireEmojis={fireEmojis}
-        showSadAnimation={showSadAnimation}
-        sadAnim={sadAnim}
-        sadEmojis={sadEmojis}
+        showTileAnimation={showTileAnimation}
+        tileAnim={tileAnim}
+        fallingTiles={fallingTiles}
         wordValidated={wordValidated}
         wordCorrect={wordCorrect}
       />
@@ -872,12 +822,9 @@ export const MultiplayerGameScreen = ({
   showRoundResult,
   roundWinner,
   roundWinningWord,
-  showFireAnimation,
-  fireAnim,
-  fireEmojis,
-  showSadAnimation,
-  sadAnim,
-  sadEmojis,
+  showTileAnimation,
+  tileAnim,
+  fallingTiles,
   wordValidated,
   wordCorrect
 }) => {
@@ -988,85 +935,58 @@ export const MultiplayerGameScreen = ({
         </View>
       </View>
       
-      {/* Random Fire Animation Overlay for Wins - Full Screen Coverage */}
-      {showFireAnimation && fireEmojis.map((emoji) => (
+      {/* Falling Letter Tiles Animation */}
+      {showTileAnimation && fallingTiles.map((tile) => (
         <Animated.View
-          key={emoji.id}
+          key={tile.id}
           style={[
-            styles.randomEmojiOverlay,
+            styles.fallingTileOverlay,
             {
-              left: emoji.x,
-              top: emoji.y,
-              opacity: fireAnim.interpolate({
-                inputRange: [emoji.delay / 2500, (emoji.delay + 300) / 2500, (emoji.delay + 1500) / 2500, 1],
-                outputRange: [0, 1, 1, 0],
+              left: tile.x,
+              top: tile.y,
+              opacity: tileAnim.interpolate({
+                inputRange: [tile.delay / 3000, (tile.delay + 500) / 3000, 1],
+                outputRange: [0, 1, 0.2],
                 extrapolate: 'clamp'
               }),
               transform: [
-                { scale: emoji.scale },
+                { scale: tile.scale },
+                { rotate: `${tile.rotation}deg` },
                 {
-                  translateY: fireAnim.interpolate({
+                  translateY: tileAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0, -200] // Move up 200px
+                    outputRange: [0, height + 100] // Fall down past screen
                   })
                 }
               ]
             }
           ]}
         >
-          <Text style={styles.randomFireEmoji}>🔥</Text>
+          <View style={styles.fallingLetterTile}>
+            <Text style={styles.fallingLetterText}>{tile.letter}</Text>
+          </View>
         </Animated.View>
       ))}
 
-      {/* Random Sad Animation Overlay for Losses - Full Screen Coverage */}
-      {showSadAnimation && sadEmojis.map((emoji) => (
-        <Animated.View
-          key={emoji.id}
-          style={[
-            styles.randomEmojiOverlay,
-            {
-              left: emoji.x,
-              top: emoji.y,
-              opacity: sadAnim.interpolate({
-                inputRange: [emoji.delay / 2500, (emoji.delay + 400) / 2500, (emoji.delay + 1200) / 2500, 1],
-                outputRange: [0, 1, 1, 0],
-                extrapolate: 'clamp'
-              }),
-              transform: [
-                { scale: emoji.scale },
-                {
-                  translateY: sadAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -200] // Move up 200px
-                  })
-                }
-              ]
-            }
-          ]}
-        >
-          <Text style={styles.randomSadEmoji}>😢</Text>
-        </Animated.View>
-      ))}
-
-      {/* Central Win/Loss Message */}
-      {(showFireAnimation || showSadAnimation) && (
+      {/* Central Round Result Message */}
+      {showTileAnimation && (
         <Animated.View style={[
           styles.centralMessageOverlay,
           {
-            opacity: (showFireAnimation ? fireAnim : sadAnim).interpolate({
-              inputRange: [0, 0.3, 0.7, 1],
+            opacity: tileAnim.interpolate({
+              inputRange: [0, 0.2, 0.8, 1],
               outputRange: [0, 1, 1, 0]
             }),
             transform: [{
-              scale: (showFireAnimation ? fireAnim : sadAnim).interpolate({
-                inputRange: [0, 0.5, 1],
-                outputRange: [0.5, 1.2, 1]
+              scale: tileAnim.interpolate({
+                inputRange: [0, 0.3, 1],
+                outputRange: [0.5, 1.1, 1]
               })
             }]
           }
         ]}>
-          <Text style={showFireAnimation ? styles.winText : styles.loseText}>
-            {showFireAnimation ? '🎉 You Won This Round!' : '😔 Opponent Won This Round!'}
+          <Text style={roundWinner === 'player' ? styles.winText : styles.loseText}>
+            {roundWinner === 'player' ? '🎉 You Won This Round!' : '😔 Opponent Won This Round!'}
           </Text>
           {roundWinningWord && (
             <Text style={styles.winningWordText}>
@@ -1457,23 +1377,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Random emoji animation overlay styles
-  randomEmojiOverlay: {
+  // Falling tiles animation overlay styles
+  fallingTileOverlay: {
     position: 'absolute',
     zIndex: 100,
     pointerEvents: 'none',
   },
-  randomFireEmoji: {
-    fontSize: 35,
-    textShadowColor: 'rgba(255, 255, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+  fallingLetterTile: {
+    backgroundColor: '#ffd54f',
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderTopColor: '#fff176',
+    borderLeftColor: '#fff176',
+    borderRightColor: '#ff8f00',
+    borderBottomColor: '#ff8f00',
+    shadowColor: '#d84315',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 6,
   },
-  randomSadEmoji: {
-    fontSize: 30,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+  fallingLetterText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#5d4037',
+    textShadowColor: 'rgba(255, 255, 255, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 1,
   },
   centralMessageOverlay: {
     position: 'absolute',

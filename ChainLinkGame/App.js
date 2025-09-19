@@ -396,22 +396,35 @@ export default function App() {
       console.log('🎮 Decreasing rounds remaining from', roundsRemaining, 'to', roundsRemaining - 1);
       setRoundsRemaining(prev => prev - 1);
     } else if (roundsRemaining === 1) {
-      // Check if this should be bonus rounds (only if user got correct answer)
+      // Last regular round - check if this should be bonus rounds
       if (correctAnswer && !bonusRounds) {
-        console.log('🎮 Entering bonus rounds - user got answer correct');
+        console.log('🎮 Entering bonus rounds - user got perfect answer on final round');
         setBonusRounds(true);
-        setRoundsRemaining(0);
+        setRoundsRemaining(0); // Set to 0 for bonus display
       } else {
-        // End the game - either timeout on round 1, or already in bonus
-        console.log('🎮 Game should end - rounds completed');
+        // End the game - either timeout/wrong answer on final round
+        console.log('🎮 Game should end - 10 rounds completed without perfect streak');
         endGame();
         return;
       }
     } else if (roundsRemaining <= 0) {
-      // Already at 0 or negative - something went wrong, end game
-      console.log('🎮 Rounds already at/below 0 - ending game');
-      endGame();
-      return;
+      // In bonus rounds or negative (error case)
+      if (bonusRounds) {
+        // In bonus rounds - continue only if correct answer
+        if (correctAnswer) {
+          console.log('🎮 Bonus round continues - correct answer');
+          // Keep roundsRemaining at 0 for bonus display
+        } else {
+          console.log('🎮 Bonus round ends - wrong answer or timeout');
+          endGame();
+          return;
+        }
+      } else {
+        // Negative rounds without bonus - error case, end game
+        console.log('🎮 ERROR: Negative rounds without bonus - ending game');
+        endGame();
+        return;
+      }
     }
     
     // Chain words based on whether user got answer correct or time ran out
