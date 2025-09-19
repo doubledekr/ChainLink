@@ -2,6 +2,13 @@
   "expo": {
     "name": "ChainLinkGame",
     "slug": "ChainLinkGame",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "fonts": [
+      "./assets/fonts/BodoniModa-Italic-VariableFont_opsz,wght.ttf"
+    ]
   }
 }

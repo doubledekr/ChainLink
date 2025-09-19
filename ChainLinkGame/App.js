@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, TouchableOpacity, Animated, Text, ActivityIndicator, Modal, ImageBackground, Image } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import * as Font from 'expo-font';
 import { 
   CustomButton, 
   CircleButton, 
@@ -20,26 +21,31 @@ const KEYBOARD_ROWS = [
   ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
 ];
 
-// Pre-computed puzzle solutions for instant validation
-const puzzles = [
-  { start: "TOWER", end: "BEACH", solutions: ["WATER", "REACH", "LATER"] },
-  { start: "HEART", end: "SPACE", solutions: ["EARTH", "CHART", "PEACE"] },
-  { start: "STORM", end: "PEACE", solutions: ["CREAM", "STEAM", "TRACE"] },
-  { start: "MAGIC", end: "TRUTH", solutions: ["MATCH", "TEACH", "TORCH"] },
-  { start: "BRAVE", end: "SMILE", solutions: ["BLAME", "SCALE", "MAPLE"] },
-  { start: "DREAM", end: "WORLD", solutions: ["DREAD", "BREAD", "TREAD"] },
-  { start: "MUSIC", end: "DANCE", solutions: ["MANIC", "SONIC", "PANIC"] },
-  { start: "OCEAN", end: "FLAME", solutions: ["CLEAN", "PLANE", "CRANE"] },
-  { start: "CROWN", end: "LIGHT", solutions: ["CLOWN", "GROWN", "BROWN"] },
-  { start: "PLANT", end: "STONE", solutions: ["PLANE", "PLATE", "SLANT"] },
-  { start: "HOUSE", end: "RIVER", solutions: ["HORSE", "HOVER", "COVER"] },
-  { start: "BREAD", end: "HONEY", solutions: ["BRAND", "BLEND", "TREND"] },
-  { start: "CHAIR", end: "TABLE", solutions: ["CABLE", "CHASE", "CHEAT"] },
-  { start: "PHONE", end: "PAPER", solutions: ["PLANE", "PHASE", "PLACE"] },
-  { start: "CLOUD", end: "EARTH", solutions: ["CLOTH", "CLEAR", "CHART"] }
+// Common 5-letter words for fallback when API fails
+const fallbackWords = [
+  "TOWER", "BEACH", "WATER", "REACH", "HEART", "SPACE", "EARTH", "CHART",
+  "STORM", "PEACE", "CREAM", "STEAM", "MAGIC", "TRUTH", "MATCH", "TEACH",
+  "BRAVE", "SMILE", "BLAME", "SCALE", "DREAM", "WORLD", "BREAD", "TREND",
+  "MUSIC", "DANCE", "SONIC", "PANIC", "OCEAN", "FLAME", "CLEAN", "PLANE",
+  "CROWN", "LIGHT", "CLOWN", "GROWN", "PLANT", "STONE", "PLATE", "SLANT",
+  "HOUSE", "RIVER", "HORSE", "HOVER", "CHAIR", "TABLE", "CABLE", "CHASE",
+  "PHONE", "PAPER", "PHASE", "PLACE", "CLOUD", "TRACE", "CLOTH", "CLEAR"
 ];
 
 export default function App() {
+  // Font loading
+  const [fontLoaded, setFontLoaded] = useState(false);
+  
+  useEffect(() => {
+    const loadFont = async () => {
+      await Font.loadAsync({
+        'Bodoni Moda': require('./assets/fonts/BodoniModa-Italic-VariableFont_opsz,wght.ttf'),
+      });
+      setFontLoaded(true);
+    };
+    loadFont();
+  }, []);
+
   // Game state
   const [gameActive, setGameActive] = useState(false);
   const [startWord, setStartWord] = useState('TOWER');
@@ -52,7 +58,8 @@ export default function App() {
   const [solved, setSolved] = useState(0);
   const [level, setLevel] = useState(1);
   const [currentPuzzle, setCurrentPuzzle] = useState(0);
-  const [gameTimeRemaining, setGameTimeRemaining] = useState(120); // 2 minutes
+  const [roundsRemaining, setRoundsRemaining] = useState(10);
+  const [bonusRounds, setBonusRounds] = useState(false); // True when past 10 rounds
   const [showGameOver, setShowGameOver] = useState(false);
   
   // UI state
@@ -68,11 +75,15 @@ export default function App() {
   const keyPressAnim = useRef(new Animated.Value(1)).current;
   const streakAnim = useRef(new Animated.Value(0)).current;
   const successMessageAnim = useRef(new Animated.Value(0)).current;
-  const confettiAnim = useRef(new Animated.Value(0)).current;
   
   // Timers
   const timerInterval = useRef(null);
   const gameTimer = useRef(null);
+  
+  // Refs to store current words for timer callbacks
+  const currentStartWordRef = useRef('');
+  const currentEndWordRef = useRef('');
+  const gameActiveRef = useRef(false);
 
   const checkWord = async (word) => {
     try {
@@ -88,6 +99,66 @@ export default function App() {
     } catch (err) {
       console.log(`🚨 API error for "${word}":`, err);
       return false;
+    }
+  };
+
+  const fetchRandomWords = async (count = 2) => {
+    try {
+      console.log(`🎲 Fetching ${count} random words from API`);
+      // Using a word list API to get random 5-letter words
+      const response = await fetch('https://random-words-api.vercel.app/word');
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+      
+      const data = await response.json();
+      const words = [];
+      
+      // Try to get valid 5-letter words
+      for (let i = 0; i < count * 5; i++) { // Try multiple times to get good words
+        const wordResponse = await fetch('https://random-words-api.vercel.app/word');
+        if (wordResponse.ok) {
+          const wordData = await wordResponse.json();
+          const word = wordData[0]?.word?.toUpperCase();
+          if (word && word.length === 5 && /^[A-Z]+$/.test(word)) {
+            words.push(word);
+            if (words.length >= count) break;
+          }
+        }
+      }
+      
+      if (words.length < count) {
+        console.log('⚠️ Not enough words from API, using fallback');
+        // Fill with fallback words if needed
+        const shuffledFallback = [...fallbackWords].sort(() => Math.random() - 0.5);
+        while (words.length < count) {
+          words.push(shuffledFallback[words.length % shuffledFallback.length]);
+        }
+      }
+      
+      console.log(`✅ Got words: ${words.join(', ')}`);
+      return words;
+    } catch (err) {
+      console.log(`🚨 Error fetching random words:`, err);
+      // Fallback to random words from our list
+      const shuffled = [...fallbackWords].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, count);
+    }
+  };
+
+  const generateFreshPuzzle = async () => {
+    try {
+      console.log('🎮 Generating fresh puzzle...');
+      const words = await fetchRandomWords(2);
+      const startWord = words[0];
+      const endWord = words[1];
+      
+      console.log(`🎯 New puzzle: ${startWord} → ${endWord}`);
+      return { start: startWord, end: endWord };
+    } catch (err) {
+      console.log('🚨 Error generating puzzle, using fallback');
+      const shuffled = [...fallbackWords].sort(() => Math.random() - 0.5);
+      return { start: shuffled[0], end: shuffled[1] };
     }
   };
 
@@ -138,120 +209,239 @@ export default function App() {
     }
   };
 
-  // Preload and shuffle puzzles for seamless gameplay
-  const getShuffledPuzzles = () => {
-    const shuffled = [...puzzles];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
-
-  const startGame = () => {
+  const startGame = async () => {
+    console.log('🎮 Starting game - setting gameActive to true');
     setGameActive(true);
+    gameActiveRef.current = true;
     setScore(0);
     setStreak(0);
     setSolved(0);
     setLevel(1);
     setCurrentPuzzle(0);
-    setGameTimeRemaining(120);
+    setRoundsRemaining(10);
+    setBonusRounds(false);
     setShowGameOver(false);
     
-    // Shuffle puzzles at start for variety
-    const shuffledPuzzles = getShuffledPuzzles();
-    
-    // Start game timer (2 minutes total)
-    gameTimer.current = setInterval(() => {
-      setGameTimeRemaining(prev => {
-        if (prev <= 1) {
-          endGame();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    // Start with first shuffled puzzle
-    const puzzleData = shuffledPuzzles[0];
+    // Generate initial two words for the game
+    console.log('🎮 Generating initial puzzle...');
+    const puzzleData = await generateFreshPuzzle();
+    console.log('🎮 Initial puzzle:', puzzleData);
     setStartWord(puzzleData.start);
     setEndWord(puzzleData.end);
     setCurrentWord('');
     setError(null);
+    
+    // Update refs for timer callbacks
+    currentStartWordRef.current = puzzleData.start;
+    currentEndWordRef.current = puzzleData.end;
+    
+    console.log('🎮 FIRST ROUND - Set refs to:', currentStartWordRef.current, '→', currentEndWordRef.current);
     
     // Start timer immediately
     const newTime = Math.max(15, 30 - Math.floor(1 / 3)); // Level 1 time (30s)
     setTimeRemaining(newTime);
     setInitialTime(newTime);
     
+    console.log('🎮 Starting timer with', newTime, 'seconds');
     timerInterval.current = setInterval(() => {
       setTimeRemaining(prev => {
-        if (prev <= 0.1) {
-          timeOut();
+        const newTime = prev - 0.1;
+        if (newTime <= 0) {
+          console.log('⏰ TIMER EXPIRED IN STARTGAME! Calling timeOut()');
+          console.log('⏰ Refs contain:', currentStartWordRef.current, '→', currentEndWordRef.current);
+          // Clear the timer immediately to prevent multiple calls
+          clearInterval(timerInterval.current);
+          // Use setTimeout to break out of the setInterval callback context
+          setTimeout(() => {
+            timeOut(currentStartWordRef.current, currentEndWordRef.current).catch(err => console.error('Error in timeOut:', err));
+          }, 0);
           return 0;
         }
-        return prev - 0.1;
+        return newTime;
       });
     }, 100);
   };
 
   const endGame = () => {
+    console.log('🎮 Ending game - setting gameActive to false');
     setGameActive(false);
+    gameActiveRef.current = false;
     clearInterval(timerInterval.current);
     clearInterval(gameTimer.current);
     setShowGameOver(true);
   };
 
-  const nextPuzzle = () => {
-    const newPuzzleIndex = (currentPuzzle + 1) % puzzles.length;
+  const nextPuzzle = async (correctAnswer = null, currentStartWord = null, currentEndWord = null) => {
+    console.log('🎮 nextPuzzle called with:');
+    console.log('   - correctAnswer:', correctAnswer);
+    console.log('   - currentStartWord:', currentStartWord);
+    console.log('   - currentEndWord:', currentEndWord);
+    console.log('   - currentPuzzle:', currentPuzzle);
+    console.log('   - roundsRemaining:', roundsRemaining);
+    console.log('   - bonusRounds:', bonusRounds);
+    
+    // Use passed words or fall back to state (for correct answers)
+    const wordToChainFrom = currentStartWord || startWord;
+    const currentEnd = currentEndWord || endWord;
+    
+    const newPuzzleIndex = currentPuzzle + 1;
     setCurrentPuzzle(newPuzzleIndex);
     
-    // Instantly load next puzzle - no delays
-    const puzzleData = puzzles[newPuzzleIndex];
-    setStartWord(puzzleData.start);
-    setEndWord(puzzleData.end);
+    // Update rounds - decrease remaining rounds
+    if (roundsRemaining > 1) {
+      console.log('🎮 Decreasing rounds remaining from', roundsRemaining, 'to', roundsRemaining - 1);
+      setRoundsRemaining(prev => prev - 1);
+    } else if (roundsRemaining === 1) {
+      // Check if this should be bonus rounds (only if user got correct answer)
+      if (correctAnswer && !bonusRounds) {
+        console.log('🎮 Entering bonus rounds - user got answer correct');
+        setBonusRounds(true);
+        setRoundsRemaining(0);
+      } else {
+        // End the game - either timeout on round 1, or already in bonus
+        console.log('🎮 Game should end - rounds completed');
+        endGame();
+        return;
+      }
+    } else if (roundsRemaining <= 0) {
+      // Already at 0 or negative - something went wrong, end game
+      console.log('🎮 Rounds already at/below 0 - ending game');
+      endGame();
+      return;
+    }
+    
+    // Chain words based on whether user got answer correct or time ran out
+    console.log('🎮 About to fetch new start word...');
+    const newStartWords = await fetchRandomWords(1);
+    const chainedStartWord = newStartWords[0];
+    let chainedEndWord;
+    
+    console.log('🎮 Current state before chaining:');
+    console.log('   - wordToChainFrom (start):', wordToChainFrom);
+    console.log('   - currentEnd:', currentEnd);
+    console.log('   - correctAnswer:', correctAnswer);
+    
+    if (correctAnswer) {
+      // User got answer correct: their answer becomes the end word
+      chainedEndWord = correctAnswer;
+      console.log('🎮 User answered correctly - their answer becomes end word:', correctAnswer);
+    } else {
+      // Time ran out: start word becomes end word
+      chainedEndWord = wordToChainFrom;
+      console.log('🎮 Time expired - start word becomes end word:', wordToChainFrom);
+    }
+    
+    console.log('🎮 NEW WORD CHAIN WILL BE:', chainedStartWord, '→', chainedEndWord);
+    console.log('🎮 BEFORE SETTING - Current UI shows:', startWord, '→', endWord);
+    console.log('🎮 SETTING NEW WORDS NOW...');
+    
+    // Set the new words directly
+    setStartWord(chainedStartWord);
+    setEndWord(chainedEndWord);
     setCurrentWord('');
     setError(null);
     
+    // Update refs for timer callbacks
+    currentStartWordRef.current = chainedStartWord;
+    currentEndWordRef.current = chainedEndWord;
+    
+    console.log('🎮 ✅ WORDS SET - New chain should be:', chainedStartWord, '→', chainedEndWord);
+    console.log('🎮 Expected: TOP =', chainedStartWord, ', BOTTOM =', chainedEndWord);
+    
+    // Force a small delay to ensure state updates
+    setTimeout(() => {
+      console.log('🎮 VERIFICATION - Current words should now be:', chainedStartWord, '→', chainedEndWord);
+    }, 100);
+    
     // Reset timer - gets faster as level increases (instant)
     const newTime = Math.max(15, 30 - Math.floor(level / 3));
+    
+    // Clear any existing timer first
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current);
+      timerInterval.current = null;
+    }
+    
+    // Set timer state
     setTimeRemaining(newTime);
     setInitialTime(newTime);
     
-    // Start puzzle timer immediately
-    clearInterval(timerInterval.current);
-    timerInterval.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 0.1) {
-          timeOut();
-          return 0;
-        }
-        return prev - 0.1;
-      });
-    }, 100);
+    // Start new timer after a small delay to ensure state updates
+    setTimeout(() => {
+      console.log('🎮 Starting next puzzle timer with', newTime, 'seconds');
+      timerInterval.current = setInterval(() => {
+        setTimeRemaining(prev => {
+          const newTime = prev - 0.1;
+          if (newTime <= 0) {
+          console.log('⏰ TIMER EXPIRED IN NEXTPUZZLE! Calling timeOut()');
+          // Clear the timer immediately to prevent multiple calls
+          clearInterval(timerInterval.current);
+          // Use setTimeout to break out of the setInterval callback context
+          setTimeout(() => {
+            timeOut(currentStartWordRef.current, currentEndWordRef.current).catch(err => console.error('Error in timeOut:', err));
+          }, 0);
+            return 0;
+          }
+          return newTime;
+        });
+      }, 100);
+    }, 50);
   };
 
-  const timeOut = () => {
+  const timeOut = async (currentStartWord, currentEndWord) => {
+    console.log('⏰ ========== TIMEOUT FUNCTION CALLED ==========');
+    console.log('⏰ gameActive (state):', gameActive);
+    console.log('⏰ gameActiveRef (ref):', gameActiveRef.current);
+    console.log('⏰ bonusRounds:', bonusRounds);
+    console.log('⏰ roundsRemaining:', roundsRemaining);
+    console.log('⏰ currentStartWord (should become END):', currentStartWord);
+    console.log('⏰ currentEndWord (will be replaced):', currentEndWord);
+    console.log('⏰ Expected: NEW_WORD →', currentStartWord);
+    
     clearInterval(timerInterval.current);
     setStreak(0);
     setError(null);
     
-    // Immediately load next puzzle when time expires
-    if (gameActive) {
-      nextPuzzle();
+    // If in bonus rounds, end game on timeout
+    if (bonusRounds) {
+      console.log('⏰ Ending game - in bonus rounds');
+      endGame();
+      return;
     }
+    
+    // Otherwise chain to next puzzle when time expires - use ref for current value
+    if (gameActiveRef.current) {
+      console.log('⏰ Game active (via ref) - calling nextPuzzle() with timeout (no correct answer)');
+      try {
+        await nextPuzzle(null, currentStartWord, currentEndWord);
+        console.log('⏰ nextPuzzle() completed successfully');
+      } catch (error) {
+        console.error('⏰ Error in nextPuzzle():', error);
+      }
+    } else {
+      console.log('⏰ Game NOT active (via ref) - not calling nextPuzzle()');
+    }
+    console.log('⏰ ========== TIMEOUT FUNCTION FINISHED ==========');
   };
 
-  const skipPuzzle = () => {
+  const skipPuzzle = async () => {
     setScore(prev => Math.max(0, prev - 50));
     setStreak(0);
     clearInterval(timerInterval.current);
     setError('skipped');
     
+    // If in bonus rounds, end game on skip
+    if (bonusRounds) {
+      setTimeout(() => {
+        endGame();
+      }, 800);
+      return;
+    }
+    
     // Automatically load next puzzle after skip
-    setTimeout(() => {
+    setTimeout(async () => {
       if (gameActive) {
-        nextPuzzle();
+        await nextPuzzle(null, currentStartWordRef.current, currentEndWordRef.current); // Pass current words for chaining
       }
     }, 800); // Fast transition for skip
   };
@@ -277,34 +467,21 @@ export default function App() {
   const animateSuccessMessage = (points) => {
     // Reset animations
     successMessageAnim.setValue(0);
-    confettiAnim.setValue(0);
     
-    // Animate success message floating up and fading
+    // Animate success message: fade in and up, then fade out
     Animated.sequence([
+      // Fade in and move up
       Animated.timing(successMessageAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 400,
         useNativeDriver: true,
       }),
-      Animated.delay(1500),
+      // Hold visible
+      Animated.delay(1200),
+      // Fade out
       Animated.timing(successMessageAnim, {
         toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      })
-    ]).start();
-
-    // Animate confetti
-    Animated.sequence([
-      Animated.delay(100),
-      Animated.timing(confettiAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(confettiAnim, {
-        toValue: 0,
-        duration: 1000,
+        duration: 400,
         useNativeDriver: true,
       })
     ]).start();
@@ -317,6 +494,17 @@ export default function App() {
     
     // Must be exactly 5 letters
     if (word.length !== 5) {
+      setError('invalid');
+      blinkError();
+      setTimeout(() => {
+        setCurrentWord('');
+        setError(null);
+      }, 1000);
+      return;
+    }
+
+    // Cannot use start or end words as answer
+    if (word === startWord.toUpperCase() || word === endWord.toUpperCase()) {
       setError('invalid');
       blinkError();
       setTimeout(() => {
@@ -373,10 +561,10 @@ export default function App() {
         ]).start(() => setShowStreak(false));
       }
       
-      // Move to next puzzle faster (1.5s instead of 2s)
-      setTimeout(() => {
+      // Move to next puzzle after success (using chaining logic)
+      setTimeout(async () => {
         if (gameActive) {
-          nextPuzzle();
+          await nextPuzzle(word); // Pass the correct answer to chain properly
         }
       }, 1500);
       
@@ -385,6 +573,14 @@ export default function App() {
       setStreak(0);
       setError('invalid');
       blinkError();
+      
+      // If in bonus rounds, end game on wrong answer
+      if (bonusRounds) {
+        setTimeout(() => {
+          endGame();
+        }, 1000);
+        return;
+      }
       
       setTimeout(() => {
         setCurrentWord('');
@@ -476,29 +672,29 @@ export default function App() {
     );
   };
 
+  if (!fontLoaded) {
+    return (
+      <SafeAreaProvider>
+        <View style={[styles.fullScreenContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="white" />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <View style={styles.fullScreenContainer}>
-        <ImageBackground 
-          source={Images.background} 
-          style={styles.backgroundImage}
-          resizeMode="cover"
-        >
         <SafeAreaView style={styles.container}>
           <View style={styles.gameBoard}>
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <Image 
-              source={Images.logo} 
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+          {/* Header Section */}
+          <View style={styles.headerContainer}>
             <TouchableOpacity 
               onPress={() => setShowRules(true)}
               activeOpacity={0.7}
-              style={styles.rulesIconButtonAbsolute}
+              style={styles.rulesButton}
             >
-              <Text style={styles.rulesIcon}>ⓘ</Text>
+              <Text style={styles.rulesButtonText}>?</Text>
             </TouchableOpacity>
           </View>
 
@@ -517,8 +713,12 @@ export default function App() {
               <Text style={styles.statLabel}>Solved</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>{level}</Text>
-              <Text style={styles.statLabel}>Level</Text>
+              <Text style={styles.statNumber}>
+                {bonusRounds ? 'BONUS' : roundsRemaining}
+              </Text>
+              <Text style={styles.statLabel}>
+                {bonusRounds ? 'Round' : 'Left'}
+              </Text>
             </View>
           </View>
 
@@ -526,12 +726,12 @@ export default function App() {
           <View style={styles.timerContainer}>
             {gameActive ? (
               <>
-                <CustomProgressBar 
-                  progress={(timeRemaining / initialTime) * 100}
-                  width={300}
-                  height={12}
-                  type="inGame"
-                />
+                <View style={styles.progressBar}>
+                  <View style={[
+                    styles.progressFill,
+                    { width: `${(timeRemaining / initialTime) * 100}%` }
+                  ]} />
+                </View>
                 
                 {/* Speed Bonus Indicator */}
                 <View style={styles.speedBonusContainer}>
@@ -562,52 +762,16 @@ export default function App() {
                   ? renderLetterTiles(currentWord, true)
                   : renderLetterTiles('', false, true)}
                 {showStreak && (
-                  <Animated.View style={[styles.streakDisplay, { opacity: streakAnim }]}>
-                    <Text style={styles.streakText}>🔥 STREAK x{streak}</Text>
+                  <Animated.View style={[styles.streakOverlay, { opacity: streakAnim }]}>
+                    <View style={styles.fireEmojiContainer}>
+                      <Text style={styles.fireEmoji}>🔥</Text>
+                      <Text style={styles.fireEmoji}>🔥</Text>
+                      <Text style={styles.fireEmoji}>🔥</Text>
+                    </View>
+                    <Text style={styles.streakText}>STREAK x{streak}</Text>
                   </Animated.View>
                 )}
                 
-                {/* Confetti Effect from Word Tiles */}
-                {gameActive && error === 'success' && (
-                  <View style={styles.confettiOriginContainer}>
-                    {[0, 1, 2, 3, 4].map((index) => (
-                      <Animated.View 
-                        key={`confetti-${index}`}
-                        style={[
-                          styles.confettiFromTile,
-                          {
-                            left: index * 58 + 3, // Position over each tile (55px width + 3px margin)
-                            opacity: confettiAnim,
-                            transform: [
-                              {
-                                translateY: confettiAnim.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [0, -80 - Math.random() * 40],
-                                }),
-                              },
-                              {
-                                translateX: confettiAnim.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [0, (Math.random() - 0.5) * 60],
-                                }),
-                              },
-                              {
-                                rotate: confettiAnim.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: ['0deg', `${Math.random() * 360}deg`],
-                                }),
-                              },
-                            ],
-                          },
-                        ]}
-                      >
-                        <Text style={styles.confetti}>
-                          {['🎊', '🎉', '✨', '🌟', '💫'][index]}
-                        </Text>
-                      </Animated.View>
-                    ))}
-                  </View>
-                )}
               </View>
               {renderLetterTiles(endWord)}
             </View>
@@ -616,15 +780,19 @@ export default function App() {
         {/* Fixed Height Feedback Area */}
         <View style={styles.feedbackContainer}>
           {gameActive && isLoading && (
-            <View style={styles.loadingFeedback}>
-              <ActivityIndicator color="white" />
-              <Text style={styles.feedback}>Checking word...</Text>
+            <View style={styles.feedbackOverlay}>
+              <View style={styles.loadingFeedback}>
+                <ActivityIndicator color="white" />
+                <Text style={styles.feedback}>Checking word...</Text>
+              </View>
             </View>
           )}
           {gameActive && error === 'invalid' && (
-            <Text style={[styles.feedback, styles.feedbackError]}>
-              ❌ Word doesn't bridge both words or isn't valid
-            </Text>
+            <View style={styles.feedbackOverlay}>
+              <Text style={[styles.feedback, styles.feedbackError]}>
+                ❌ Word doesn't bridge both words or isn't valid
+              </Text>
+            </View>
           )}
           
           {/* Animated Success Message */}
@@ -637,13 +805,13 @@ export default function App() {
                   {
                     translateY: successMessageAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [50, -20],
+                      outputRange: [30, -30],
                     }),
                   },
                   {
                     scale: successMessageAnim.interpolate({
-                      inputRange: [0, 0.5, 1],
-                      outputRange: [0.8, 1.2, 1],
+                      inputRange: [0, 0.3, 1],
+                      outputRange: [0.7, 1.1, 1],
                     }),
                   },
                 ],
@@ -663,13 +831,13 @@ export default function App() {
         {/* Fixed Height Controls Area */}
         <View style={styles.controlsContainer}>
           {gameActive && (
-            <CustomButton
+            <TouchableOpacity 
+              style={styles.simpleButton}
               onPress={skipPuzzle}
-              text="Skip (-50 pts)"
-              size="large"
-              color="red"
-              textStyle={{ marginTop: -12 }}
-            />
+              activeOpacity={0.8}
+            >
+              <Text style={styles.simpleButtonText}>Skip (-50 pts)</Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -709,138 +877,118 @@ export default function App() {
           </View>
         </View>
 
-        {/* Start Game Overlay */}
-        <Modal
-          visible={!gameActive && !showGameOver}
-          transparent={true}
-          animationType="fade"
-        >
-          <View style={styles.startOverlay}>
-            <Panel size="medium" style={styles.startContent}>
-              <View style={styles.startLogoContainer}>
-                <Image 
-                  source={Images.logo} 
-                  style={styles.startLogoImage}
-                  resizeMode="contain"
-                />
-              </View>
+        {/* Start Game Screen */}
+        {!gameActive && !showGameOver && (
+          <View style={styles.fullscreenOverlay}>
+            <View style={styles.startScreen}>
+              <Text style={styles.startTitle}>Lightning Links</Text>
               <Text style={styles.startSubtitle}>Bridge words with lightning speed!</Text>
               
-              <View style={styles.startStats}>
-                <Text style={styles.startStatsText}>Find bridge words in 30 seconds</Text>
-                <Text style={styles.startStatsText}>Build streaks for massive multipliers</Text>
-                <Text style={styles.startStatsText}>Faster answers = bonus points</Text>
+              <View style={styles.startInstructions}>
+                <Text style={styles.instructionText}>Complete 10 rounds to finish the game</Text>
+                <Text style={styles.instructionText}>Perfect streak? Keep playing bonus rounds!</Text>
+                <Text style={styles.instructionText}>One mistake in bonus = game over</Text>
               </View>
               
-              <CustomButton
+              <TouchableOpacity 
+                style={styles.primaryButton}
                 onPress={startGame}
-                text="Start Lightning Round"
-                size="large"
-                color="yellow"
-                style={{ marginVertical: 10 }}
-              />
+                activeOpacity={0.8}
+              >
+                <Text style={styles.primaryButtonText}>Start Lightning Round</Text>
+              </TouchableOpacity>
               
-              <CustomButton
+              <TouchableOpacity 
+                style={styles.secondaryButton}
                 onPress={() => setShowRules(true)}
-                text="How to Play"
-                size="large"
-                color="blue"
-              />
-            </Panel>
+                activeOpacity={0.8}
+              >
+                <Text style={styles.secondaryButtonText}>How to Play</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Modal>
+        )}
 
-        {/* Game Over Modal */}
-        <Modal
-          visible={showGameOver}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowGameOver(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <Panel size="medium" style={styles.gameOverContent}>
-              <CloseButton 
-                onPress={() => setShowGameOver(false)} 
-                style={{ position: 'absolute', top: 10, right: 10 }}
-              />
+        {/* Game Over Screen */}
+        {showGameOver && (
+          <View style={styles.fullscreenOverlay}>
+            <View style={styles.gameOverScreen}>
               <Text style={styles.gameOverTitle}>Lightning Round Complete!</Text>
               <Text style={styles.finalScore}>{score.toLocaleString()}</Text>
               
-              <View style={styles.achievements}>
-                <CustomTextBox style={styles.achievement}>
-                  <Text style={styles.achievementText}>Max Streak: {streak}</Text>
-                </CustomTextBox>
-                <CustomTextBox style={styles.achievement}>
-                  <Text style={styles.achievementText}>Puzzles Solved: {solved}</Text>
-                </CustomTextBox>
-                <CustomTextBox style={styles.achievement}>
-                  <Text style={styles.achievementText}>Level Reached: {level}</Text>
-                </CustomTextBox>
+              <View style={styles.statsGrid}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statBoxLabel}>Max Streak</Text>
+                  <Text style={styles.statBoxValue}>{streak}</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statBoxLabel}>Puzzles Solved</Text>
+                  <Text style={styles.statBoxValue}>{solved}</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statBoxLabel}>Level Reached</Text>
+                  <Text style={styles.statBoxValue}>{level}</Text>
+                </View>
               </View>
               
-              <View style={styles.gameOverButtons}>
-                <CustomButton
-                  onPress={startGame}
-                  text="Play Again"
-                  size="large"
-                  color="yellow"
-                />
-              </View>
-            </Panel>
+              <TouchableOpacity 
+                style={styles.primaryButton}
+                onPress={startGame}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.primaryButtonText}>Play Again</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Modal>
+        )}
 
-        {/* Rules Modal */}
-        <Modal
-          visible={showRules}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowRules(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <Panel size="full" style={styles.modalContent}>
-              <CloseButton 
-                onPress={() => setShowRules(false)} 
-                style={{ position: 'absolute', top: 10, right: 10 }}
-              />
-              <Text style={styles.modalTitle}>⚡ Lightning Links Rules</Text>
+        {/* Rules Screen */}
+        {showRules && (
+          <View style={styles.fullscreenOverlay}>
+            <View style={styles.rulesScreen}>
+              <View style={styles.rulesHeader}>
+                <Text style={styles.rulesTitle}>How to Play</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowRules(false)}
+                  style={styles.simpleCloseButton}
+                >
+                  <Text style={styles.simpleCloseText}>×</Text>
+                </TouchableOpacity>
+              </View>
               
-              <Text style={styles.ruleText}>🎯 <Text style={styles.boldText}>Goal:</Text> Find a 5-letter bridge word that connects both words</Text>
-              
-              <CustomTextBox style={styles.diagramContainer}>
-                <Text style={styles.diagramTitle}>Letter Sharing Rule:</Text>
+              <View style={styles.rulesContent}>
+                <Text style={styles.ruleText}><Text style={styles.boldText}>Goal:</Text> Find a 5-letter bridge word that connects both words</Text>
                 
-                <View style={styles.diagramRow}>
-                  <Text style={styles.diagramWord}>HEART</Text>
-                  <Text style={styles.diagramArrow}>→</Text>
-                  <Text style={styles.diagramBridge}>PACER</Text>
-                  <Text style={styles.diagramArrow}>→</Text>
-                  <Text style={styles.diagramWord}>SPACE</Text>
+                <View style={styles.compactExampleContainer}>
+                  <Text style={styles.compactExampleTitle}>Letter Sharing Rule:</Text>
+                  
+                  <View style={styles.exampleRow}>
+                    <Text style={styles.exampleWord}>HEART</Text>
+                    <Text style={styles.arrow}>→</Text>
+                    <Text style={styles.bridgeWord}>PACER</Text>
+                    <Text style={styles.arrow}>→</Text>
+                    <Text style={styles.exampleWord}>SPACE</Text>
+                  </View>
+                  
+                  <Text style={styles.compactSharingRule}>Bridge word must share ≥2 letters with BOTH words</Text>
                 </View>
                 
-                <View style={styles.sharingExample}>
-                  <Text style={styles.sharingText}>HEART ↔ PACER: <Text style={styles.sharedLetters}>A, E, R</Text> (3 letters) ✅</Text>
-                  <Text style={styles.sharingText}>PACER ↔ SPACE: <Text style={styles.sharedLetters}>P, A, C, E</Text> (4 letters) ✅</Text>
-                </View>
-                
-                <Text style={styles.ruleHighlight}>Bridge word must share ≥2 letters with BOTH words</Text>
-              </CustomTextBox>
+                <Text style={styles.ruleText}><Text style={styles.boldText}>Game:</Text> Complete 10 rounds to finish</Text>
+                <Text style={styles.ruleText}><Text style={styles.boldText}>Bonus:</Text> Perfect streak unlocks bonus rounds</Text>
+                <Text style={styles.ruleText}><Text style={styles.boldText}>Scoring:</Text> Base 100 + time bonus + streak multiplier</Text>
+              </View>
               
-              <Text style={styles.ruleText}>⏰ <Text style={styles.boldText}>Time:</Text> 30 seconds per puzzle (gets faster as you level up!)</Text>
-              <Text style={styles.ruleText}>🏆 <Text style={styles.boldText}>Scoring:</Text> Base 100 + time bonus + streak multiplier + level bonus</Text>
-              
-              <CustomButton
+              <TouchableOpacity 
+                style={styles.primaryButton}
                 onPress={() => setShowRules(false)}
-                text="Got it!"
-                size="small"
-                color="purple"
-                style={{ marginTop: 20 }}
-              />
-            </Panel>
+                activeOpacity={0.8}
+              >
+                <Text style={styles.primaryButtonText}>Got it!</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Modal>
+        )}
         </SafeAreaView>
-        </ImageBackground>
       </View>
     </SafeAreaProvider>
   );
@@ -849,38 +997,29 @@ export default function App() {
 const styles = StyleSheet.create({
   fullScreenContainer: {
     flex: 1,
-    backgroundColor: '#ff8a00', // Orange background color
+    backgroundColor: '#1EB2E8', // NYT-style blue background
   },
   container: {
     flex: 1,
     backgroundColor: 'transparent',
   },
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
   gameBoard: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 5,
+    paddingTop: 40,
     paddingBottom: 0,
     paddingHorizontal: 15,
   },
-  logoContainer: {
+  headerContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
     width: '100%',
-    marginBottom: 2,
-    marginTop: -5,
-    paddingHorizontal: 10,
-    position: 'relative',
-  },
-  logoImage: {
-    width: 450,
-    height: 160,
+    marginBottom: 5,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    height: 50,
   },
   rulesIconButton: {
     width: 32,
@@ -1032,6 +1171,20 @@ const styles = StyleSheet.create({
     marginVertical: 5,
     position: 'relative',
   },
+  feedbackOverlay: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+  },
   animatedSuccessContainer: {
     position: 'absolute',
     alignItems: 'center',
@@ -1039,28 +1192,20 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 10,
   },
-  confettiOriginContainer: {
+  singleConfettiContainer: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 55,
+    top: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
     zIndex: 20,
     pointerEvents: 'none',
   },
-  confettiFromTile: {
-    position: 'absolute',
-    top: 0,
-    width: 55,
-    height: 55,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confetti: {
-    fontSize: 18,
+  largeConfetti: {
+    fontSize: 32,
     textShadowColor: 'rgba(255, 255, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   controlsContainer: {
     minHeight: 45,
@@ -1092,12 +1237,12 @@ const styles = StyleSheet.create({
   },
   letterTile: {
     backgroundColor: '#ffd54f',
-    width: 55,
-    height: 55,
+    width: 65,
+    height: 65,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 3,
+    marginHorizontal: 4,
     borderWidth: 4,
     borderTopColor: '#fff176',
     borderLeftColor: '#fff176',
@@ -1119,12 +1264,12 @@ const styles = StyleSheet.create({
   },
   emptyLetterTile: {
     backgroundColor: 'rgba(255, 213, 79, 0.3)',
-    width: 55,
-    height: 55,
+    width: 65,
+    height: 65,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 3,
+    marginHorizontal: 4,
     borderWidth: 3,
     borderColor: 'rgba(255, 213, 79, 0.6)',
     borderStyle: 'dashed',
@@ -1415,9 +1560,338 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(113, 128, 150, 0.3)',
   },
+  rulesButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   rulesButtonText: {
-    color: '#718096',
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  
+  // NYT-Style Simple Buttons
+  simpleButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: 'white',
+    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  simpleButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  primaryButton: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    marginVertical: 8,
+    minWidth: 200,
+  },
+  primaryButtonText: {
+    color: '#1EB2E8',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: 'white',
+    borderRadius: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    marginVertical: 8,
+    minWidth: 200,
+  },
+  secondaryButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  // Progress Bar
+  progressBar: {
+    width: 300,
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: 'white',
+    borderRadius: 4,
+  },
+  
+  // Fullscreen Overlays
+  fullscreenOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#1EB2E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  startScreen: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    width: '100%',
+  },
+  startTitle: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    fontFamily: 'Bodoni Moda',
+    color: 'white',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  startSubtitle: {
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 30,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  startInstructions: {
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  instructionText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 6,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  gameOverScreen: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 60,
+    width: '100%',
+    maxWidth: 400,
+  },
+  gameOverTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  finalScore: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 40,
+    gap: 20,
+  },
+  statBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    minWidth: 70,
+  },
+  statBoxLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  statBoxValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+  rulesScreen: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    padding: 40,
+    paddingTop: 60,
+    width: '100%',
+    height: '100%',
+  },
+  rulesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 40,
+  },
+  rulesTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    flex: 1,
+    textAlign: 'center',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  rulesContent: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+  },
+  ruleText: {
+    fontSize: 14,
+    color: 'white',
+    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  boldText: {
+    fontWeight: 'bold',
+  },
+  compactExampleContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 12,
+    width: '90%',
+    maxWidth: 280,
+  },
+  compactExampleTitle: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  compactSharingRule: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 6,
+    borderRadius: 4,
+  },
+  simpleCloseButton: {
+    padding: 4,
+  },
+  simpleCloseText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  exampleRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  exampleWord: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    color: 'white',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  bridgeWord: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    color: 'white',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  arrow: {
+    fontSize: 20,
+    color: 'white',
+    marginHorizontal: 12,
+  },
+  sharingRule: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 12,
+    borderRadius: 6,
+  },
+  streakOverlay: {
+    position: 'absolute',
+    top: -60,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+    pointerEvents: 'none',
+  },
+  fireEmojiContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fireEmoji: {
+    fontSize: 36,
+    marginHorizontal: 4,
+    textShadowColor: 'rgba(255, 140, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  streakText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  feedback: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    lineHeight: 22,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  feedbackError: {
+    color: '#ff6b6b',
+  },
+  feedbackSuccess: {
+    color: 'white',
   },
 });
