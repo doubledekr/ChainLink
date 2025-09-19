@@ -63,14 +63,12 @@ export default function App() {
   const [showGameOver, setShowGameOver] = useState(false);
   
   // UI state
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [keyPressed, setKeyPressed] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [showStreak, setShowStreak] = useState(false);
   
   // Animations
-  const blinkAnim = useRef(new Animated.Value(1)).current;
   const confirmAnim = useRef(new Animated.Value(1)).current;
   const keyPressAnim = useRef(new Animated.Value(1)).current;
   const streakAnim = useRef(new Animated.Value(0)).current;
@@ -446,16 +444,6 @@ export default function App() {
     }, 800); // Fast transition for skip
   };
 
-  const blinkError = () => {
-    Animated.sequence([
-      Animated.timing(blinkAnim, { toValue: 0.2, duration: 150, useNativeDriver: true }),
-      Animated.timing(blinkAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-      Animated.timing(blinkAnim, { toValue: 0.2, duration: 150, useNativeDriver: true }),
-      Animated.timing(blinkAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-      Animated.timing(blinkAnim, { toValue: 0.2, duration: 150, useNativeDriver: true }),
-      Animated.timing(blinkAnim, { toValue: 1, duration: 150, useNativeDriver: true })
-    ]).start();
-  };
 
   const confirmSuccess = () => {
     Animated.sequence([
@@ -495,7 +483,6 @@ export default function App() {
     // Must be exactly 5 letters
     if (word.length !== 5) {
       setError('invalid');
-      blinkError();
       setTimeout(() => {
         setCurrentWord('');
         setError(null);
@@ -506,7 +493,6 @@ export default function App() {
     // Cannot use start or end words as answer
     if (word === startWord.toUpperCase() || word === endWord.toUpperCase()) {
       setError('invalid');
-      blinkError();
       setTimeout(() => {
         setCurrentWord('');
         setError(null);
@@ -515,9 +501,7 @@ export default function App() {
     }
 
     // Validate word with API and letter sharing rules
-    setIsLoading(true);
     const isValidBridge = await validateBridgeWord(word, startWord, endWord);
-    setIsLoading(false);
     
     if (isValidBridge) {
       // SUCCESS! (Instant response)
@@ -572,7 +556,6 @@ export default function App() {
       // WRONG ANSWER (Instant response)
       setStreak(0);
       setError('invalid');
-      blinkError();
       
       // If in bonus rounds, end game on wrong answer
       if (bonusRounds) {
@@ -648,7 +631,6 @@ export default function App() {
               style={[
                 letter ? styles.letterTile : styles.emptyLetterTile,
                 isInput && error === 'invalid' && letter && { 
-                  opacity: blinkAnim, 
                   backgroundColor: '#ff6b6b',
                   borderColor: '#ff0000'
                 },
@@ -779,14 +761,6 @@ export default function App() {
 
         {/* Fixed Height Feedback Area */}
         <View style={styles.feedbackContainer}>
-          {gameActive && isLoading && (
-            <View style={styles.feedbackOverlay}>
-              <View style={styles.loadingFeedback}>
-                <ActivityIndicator color="white" />
-                <Text style={styles.feedback}>Checking word...</Text>
-              </View>
-            </View>
-          )}
           {gameActive && error === 'invalid' && (
             <View style={styles.feedbackOverlay}>
               <Text style={[styles.feedback, styles.feedbackError]}>
@@ -1179,7 +1153,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 15,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -1293,12 +1266,6 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 10,
-  },
-  loadingFeedback: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
   },
   newPuzzleButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
