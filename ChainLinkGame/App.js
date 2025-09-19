@@ -67,6 +67,8 @@ export default function App() {
   const confirmAnim = useRef(new Animated.Value(1)).current;
   const keyPressAnim = useRef(new Animated.Value(1)).current;
   const streakAnim = useRef(new Animated.Value(0)).current;
+  const successMessageAnim = useRef(new Animated.Value(0)).current;
+  const confettiAnim = useRef(new Animated.Value(0)).current;
   
   // Timers
   const timerInterval = useRef(null);
@@ -184,13 +186,13 @@ export default function App() {
     
     timerInterval.current = setInterval(() => {
       setTimeRemaining(prev => {
-        if (prev <= 1) {
+        if (prev <= 0.1) {
           timeOut();
           return 0;
         }
-        return prev - 1;
+        return prev - 0.1;
       });
-    }, 1000);
+    }, 100);
   };
 
   const endGame = () => {
@@ -220,13 +222,13 @@ export default function App() {
     clearInterval(timerInterval.current);
     timerInterval.current = setInterval(() => {
       setTimeRemaining(prev => {
-        if (prev <= 1) {
+        if (prev <= 0.1) {
           timeOut();
           return 0;
         }
-        return prev - 1;
+        return prev - 0.1;
       });
-    }, 1000);
+    }, 100);
   };
 
   const timeOut = () => {
@@ -269,6 +271,42 @@ export default function App() {
     Animated.sequence([
       Animated.timing(confirmAnim, { toValue: 1.2, duration: 200, useNativeDriver: true }),
       Animated.timing(confirmAnim, { toValue: 1, duration: 200, useNativeDriver: true })
+    ]).start();
+  };
+
+  const animateSuccessMessage = (points) => {
+    // Reset animations
+    successMessageAnim.setValue(0);
+    confettiAnim.setValue(0);
+    
+    // Animate success message floating up and fading
+    Animated.sequence([
+      Animated.timing(successMessageAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(1500),
+      Animated.timing(successMessageAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    // Animate confetti
+    Animated.sequence([
+      Animated.delay(100),
+      Animated.timing(confettiAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(confettiAnim, {
+        toValue: 0,
+        duration: 1000,
+        useNativeDriver: true,
+      })
     ]).start();
   };
 
@@ -323,6 +361,7 @@ export default function App() {
       // Show success animation
       setError('success');
       confirmSuccess();
+      animateSuccessMessage(points);
       
       // Show streak animation if streak >= 3
       if (newStreak >= 3) {
@@ -497,13 +536,13 @@ export default function App() {
                 {/* Speed Bonus Indicator */}
                 <View style={styles.speedBonusContainer}>
                   {timeRemaining > (initialTime * 0.8) && (
-                    <Text style={styles.speedBonusText}>⚡ SUPER FAST +100</Text>
+                    <Text style={styles.speedBonusText}>SUPER FAST +100</Text>
                   )}
                   {timeRemaining <= (initialTime * 0.8) && timeRemaining > (initialTime * 0.6) && (
-                    <Text style={styles.speedBonusText}>🔥 FAST +50</Text>
+                    <Text style={styles.speedBonusText}>FAST +50</Text>
                   )}
                   {timeRemaining <= (initialTime * 0.6) && timeRemaining > (initialTime * 0.4) && (
-                    <Text style={styles.speedBonusText}>👍 MEDIUM +25</Text>
+                    <Text style={styles.speedBonusText}>MEDIUM +25</Text>
                   )}
                 </View>
               </>
@@ -527,6 +566,48 @@ export default function App() {
                     <Text style={styles.streakText}>🔥 STREAK x{streak}</Text>
                   </Animated.View>
                 )}
+                
+                {/* Confetti Effect from Word Tiles */}
+                {gameActive && error === 'success' && (
+                  <View style={styles.confettiOriginContainer}>
+                    {[0, 1, 2, 3, 4].map((index) => (
+                      <Animated.View 
+                        key={`confetti-${index}`}
+                        style={[
+                          styles.confettiFromTile,
+                          {
+                            left: index * 58 + 3, // Position over each tile (55px width + 3px margin)
+                            opacity: confettiAnim,
+                            transform: [
+                              {
+                                translateY: confettiAnim.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [0, -80 - Math.random() * 40],
+                                }),
+                              },
+                              {
+                                translateX: confettiAnim.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [0, (Math.random() - 0.5) * 60],
+                                }),
+                              },
+                              {
+                                rotate: confettiAnim.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: ['0deg', `${Math.random() * 360}deg`],
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      >
+                        <Text style={styles.confetti}>
+                          {['🎊', '🎉', '✨', '🌟', '💫'][index]}
+                        </Text>
+                      </Animated.View>
+                    ))}
+                  </View>
+                )}
               </View>
               {renderLetterTiles(endWord)}
             </View>
@@ -540,19 +621,43 @@ export default function App() {
               <Text style={styles.feedback}>Checking word...</Text>
             </View>
           )}
-          {gameActive && error === 'success' && (
-            <Text style={[styles.feedback, styles.feedbackSuccess]}>
-              🎉 Perfect! +{((100 + timeRemaining * 10 + (timeRemaining > (initialTime * 0.8) ? 100 : timeRemaining > (initialTime * 0.6) ? 50 : timeRemaining > (initialTime * 0.4) ? 25 : 0) + level * 5) * Math.min(streak, 10)).toLocaleString()} points!
-              {timeRemaining > (initialTime * 0.8) && " ⚡ SUPER FAST BONUS!"}
-              {timeRemaining <= (initialTime * 0.8) && timeRemaining > (initialTime * 0.6) && " 🔥 FAST BONUS!"}
-              {timeRemaining <= (initialTime * 0.6) && timeRemaining > (initialTime * 0.4) && " 👍 SPEED BONUS!"}
-            </Text>
-          )}
           {gameActive && error === 'invalid' && (
             <Text style={[styles.feedback, styles.feedbackError]}>
               ❌ Word doesn't bridge both words or isn't valid
             </Text>
           )}
+          
+          {/* Animated Success Message */}
+          {gameActive && error === 'success' && (
+            <Animated.View style={[
+              styles.animatedSuccessContainer,
+              {
+                opacity: successMessageAnim,
+                transform: [
+                  {
+                    translateY: successMessageAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [50, -20],
+                    }),
+                  },
+                  {
+                    scale: successMessageAnim.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.8, 1.2, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}>
+              <Text style={[styles.feedback, styles.feedbackSuccess]}>
+                Perfect! +{((100 + timeRemaining * 10 + (timeRemaining > (initialTime * 0.8) ? 100 : timeRemaining > (initialTime * 0.6) ? 50 : timeRemaining > (initialTime * 0.4) ? 25 : 0) + level * 5) * Math.min(streak, 10)).toLocaleString()} points!
+                {timeRemaining > (initialTime * 0.8) && " SUPER FAST BONUS!"}
+                {timeRemaining <= (initialTime * 0.8) && timeRemaining > (initialTime * 0.6) && " FAST BONUS!"}
+                {timeRemaining <= (initialTime * 0.6) && timeRemaining > (initialTime * 0.4) && " SPEED BONUS!"}
+              </Text>
+            </Animated.View>
+          )}
+          
         </View>
 
         {/* Fixed Height Controls Area */}
@@ -925,6 +1030,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 5,
+    position: 'relative',
+  },
+  animatedSuccessContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    zIndex: 10,
+  },
+  confettiOriginContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 55,
+    zIndex: 20,
+    pointerEvents: 'none',
+  },
+  confettiFromTile: {
+    position: 'absolute',
+    top: 0,
+    width: 55,
+    height: 55,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confetti: {
+    fontSize: 18,
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   controlsContainer: {
     minHeight: 45,
@@ -944,6 +1080,11 @@ const styles = StyleSheet.create({
   wordContainer: {
     marginVertical: 4,
     alignItems: 'center',
+  },
+  inputContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   letterRow: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { 
   TouchableOpacity, 
   Text, 
@@ -113,11 +113,11 @@ export const CustomProgressBar = ({ progress, width = 300, height = 20, type = '
   
   return (
     <View style={[customStyles.progressContainer, { width, height, backgroundColor: grooveColor, borderRadius: Math.min(height/2, 6) }]}>
-      <Animated.View 
+      <View 
         style={[
           customStyles.progressFillAnimated, 
           { 
-            width: `${progress}%`, 
+            width: `${Math.max(0, progress)}%`,
             height,
             backgroundColor: progressColor,
             borderRadius: Math.min(height/2, 6),
