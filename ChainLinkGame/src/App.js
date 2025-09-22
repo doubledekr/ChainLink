@@ -169,11 +169,13 @@ export default function App() {
     
     gameState.setCurrentPuzzle(prev => prev + 1);
     
-    // Update rounds
-    if (gameState.roundsRemaining > 1) {
-      console.log('🎮 Decreasing rounds remaining from', gameState.roundsRemaining, 'to', gameState.roundsRemaining - 1);
-      gameState.setRoundsRemaining(prev => prev - 1);
-    } else if (gameState.roundsRemaining === 1) {
+    // Update rounds - use current value to determine next state
+    const currentRounds = gameState.roundsRemaining;
+    
+    if (currentRounds > 1) {
+      console.log('🎮 Decreasing rounds remaining from', currentRounds, 'to', currentRounds - 1);
+      gameState.setRoundsRemaining(currentRounds - 1);
+    } else if (currentRounds === 1) {
       if (correctAnswer && !gameState.bonusRounds) {
         console.log('🎮 Entering bonus rounds - user got perfect answer on final round');
         gameState.setBonusRounds(true);
@@ -183,7 +185,7 @@ export default function App() {
         gameState.endGame();
         return;
       }
-    } else if (gameState.roundsRemaining <= 0) {
+    } else if (currentRounds <= 0) {
       if (gameState.bonusRounds) {
         if (correctAnswer) {
           console.log('🎮 Bonus round continues - correct answer');
