@@ -1,0 +1,213 @@
+import { StyleSheet } from 'react-native';
+
+export const screenStyles = StyleSheet.create({
+  // Fullscreen overlay styles
+  fullscreenOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#1EB2E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  
+  // Start screen styles
+  startScreen: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    width: '100%',
+  },
+  startTitle: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    fontFamily: 'Bodoni Moda',
+    color: 'white',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  startSubtitle: {
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 30,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  startInstructions: {
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  instructionText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 6,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  
+  // Game over screen styles
+  gameOverScreen: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 60,
+    width: '100%',
+    maxWidth: 400,
+  },
+  gameOverTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  finalScore: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 40,
+    gap: 20,
+  },
+  statBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    minWidth: 70,
+  },
+  statBoxLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  statBoxValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+  
+  // Rules screen styles
+  rulesScreen: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    padding: 40,
+    paddingTop: 60,
+    width: '100%',
+    height: '100%',
+  },
+  rulesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 40,
+  },
+  rulesTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    flex: 1,
+    textAlign: 'center',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  rulesContent: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+  },
+  ruleText: {
+    fontSize: 14,
+    color: 'white',
+    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  boldText: {
+    fontWeight: 'bold',
+  },
+  compactExampleContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 12,
+    width: '90%',
+    maxWidth: 280,
+  },
+  compactExampleTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  compactSharingRule: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 6,
+    borderRadius: 4,
+  },
+  simpleCloseButton: {
+    padding: 4,
+  },
+  simpleCloseText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  exampleRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  exampleWord: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    color: 'white',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  bridgeWord: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    color: 'white',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  arrow: {
+    fontSize: 20,
+    color: 'white',
+    marginHorizontal: 12,
+  },
+});
