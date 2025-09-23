@@ -120,7 +120,9 @@ export default function App() {
 
   // Game logic functions
   const startGame = async () => {
+    console.log('🎮 Starting new game - initial roundsRemaining:', gameState.roundsRemaining);
     gameState.startGame();
+    console.log('🎮 After startGame() - roundsRemaining:', gameState.roundsRemaining);
     
     // Generate initial puzzle
     console.log('🎮 Generating initial puzzle...');
@@ -166,11 +168,13 @@ export default function App() {
 
   const nextPuzzle = async (correctAnswer = null) => {
     console.log('🎮 nextPuzzle called with correctAnswer:', correctAnswer);
+    console.log('🎮 Current gameState.roundsRemaining:', gameState.roundsRemaining);
     
     gameState.setCurrentPuzzle(prev => prev + 1);
     
     // Update rounds - use current value to determine next state
     const currentRounds = gameState.roundsRemaining;
+    console.log('🎮 Using currentRounds for logic:', currentRounds);
     
     if (currentRounds > 1) {
       console.log('🎮 Decreasing rounds remaining from', currentRounds, 'to', currentRounds - 1);

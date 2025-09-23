@@ -9,6 +9,9 @@ const ScoreDisplay = ({
   roundsRemaining, 
   bonusRounds 
 }) => {
+  // Debug logging
+  console.log('📊 ScoreDisplay received:', { score, streak, solved, roundsRemaining, bonusRounds });
+  
   return (
     <View style={globalStyles.statsContainer}>
       <View style={globalStyles.stat}>
