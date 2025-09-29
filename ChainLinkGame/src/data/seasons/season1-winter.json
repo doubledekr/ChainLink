@@ -1,0 +1,161 @@
+{
+  "id": "winter_wonderland_2024",
+  "name": "Winter Wonderland",
+  "description": "A magical winter experience with snowflakes and ice crystals",
+  "startDate": "2024-12-01",
+  "endDate": "2025-01-15",
+  "duration": 46,
+  "theme": {
+    "primaryColor": "#4A90E2",
+    "secondaryColor": "#87CEEB",
+    "accentColor": "#E3F2FD",
+    "backgroundColor": "#F8F9FA",
+    "backgroundImage": "winter-bg.png",
+    "particleEffect": "snowflakes",
+    "musicTheme": "winter_ambient"
+  },
+  "wordCategories": [
+    "winter",
+    "holidays",
+    "cold",
+    "snow",
+    "ice",
+    "christmas",
+    "newyear",
+    "frost"
+  ],
+  "challenges": [
+    {
+      "id": "winter_streak_master",
+      "name": "Winter Streak Master",
+      "description": "Achieve a 15-word streak during winter season",
+      "target": 15,
+      "reward": {
+        "type": "theme",
+        "item": "ice_crystal_tiles",
+        "coins": 200,
+        "xp": 100
+      },
+      "difficulty": "medium",
+      "category": "streak"
+    },
+    {
+      "id": "winter_vocabulary",
+      "name": "Winter Vocabulary",
+      "description": "Use 20 winter-themed words in your games",
+      "target": 20,
+      "reward": {
+        "type": "theme",
+        "item": "snowflake_border",
+        "coins": 150,
+        "xp": 75
+      },
+      "difficulty": "easy",
+      "category": "words"
+    },
+    {
+      "id": "winter_perfect_games",
+      "name": "Winter Perfection",
+      "description": "Complete 5 perfect games during winter season",
+      "target": 5,
+      "reward": {
+        "type": "theme",
+        "item": "ice_queen_crown",
+        "coins": 300,
+        "xp": 150
+      },
+      "difficulty": "hard",
+      "category": "perfection"
+    },
+    {
+      "id": "winter_score_hunt",
+      "name": "Winter Score Hunt",
+      "description": "Reach a total score of 5000 points during winter season",
+      "target": 5000,
+      "reward": {
+        "type": "theme",
+        "item": "winter_champion_badge",
+        "coins": 250,
+        "xp": 125
+      },
+      "difficulty": "medium",
+      "category": "score"
+    },
+    {
+      "id": "winter_daily_master",
+      "name": "Winter Daily Master",
+      "description": "Complete daily challenges for 14 consecutive days",
+      "target": 14,
+      "reward": {
+        "type": "title",
+        "item": "Winter Champion",
+        "coins": 400,
+        "xp": 200
+      },
+      "difficulty": "hard",
+      "category": "consistency"
+    }
+  ],
+  "rewards": {
+    "tier1": {
+      "name": "Winter Apprentice",
+      "xp": 100,
+      "coins": 50,
+      "unlock": "winter_theme_variant_1"
+    },
+    "tier2": {
+      "name": "Winter Explorer",
+      "xp": 250,
+      "coins": 100,
+      "unlock": "winter_theme_variant_2"
+    },
+    "tier3": {
+      "name": "Winter Master",
+      "xp": 500,
+      "coins": 200,
+      "unlock": "winter_theme_premium"
+    }
+  },
+  "specialEvents": [
+    {
+      "id": "christmas_bonus",
+      "name": "Christmas Bonus",
+      "date": "2024-12-25",
+      "description": "Double XP and coins on Christmas Day",
+      "multiplier": 2.0
+    },
+    {
+      "id": "new_year_celebration",
+      "name": "New Year Celebration",
+      "date": "2025-01-01",
+      "description": "Special New Year challenges and rewards",
+      "multiplier": 1.5
+    }
+  ],
+  "unlockables": [
+    {
+      "id": "ice_crystal_tiles",
+      "name": "Ice Crystal Tiles",
+      "type": "tile_skin",
+      "description": "Beautiful ice crystal tile design"
+    },
+    {
+      "id": "snowflake_border",
+      "name": "Snowflake Border",
+      "type": "border",
+      "description": "Elegant snowflake border pattern"
+    },
+    {
+      "id": "ice_queen_crown",
+      "name": "Ice Queen Crown",
+      "type": "avatar_accessory",
+      "description": "Royal ice queen crown for your avatar"
+    },
+    {
+      "id": "winter_champion_badge",
+      "name": "Winter Champion Badge",
+      "type": "badge",
+      "description": "Exclusive winter champion badge"
+    }
+  ]
+}
