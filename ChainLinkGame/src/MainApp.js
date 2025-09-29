@@ -15,15 +15,15 @@ import StartScreen from './components/screens/StartScreen';
 import GameOverScreen from './components/screens/GameOverScreen';
 import RulesScreen from './components/screens/RulesScreen';
 
-// Feature Branch Components (when available)
-import StoreScreen from './components/monetization/StoreScreen';
-import LightningPassScreen from './components/monetization/LightningPassScreen';
-import AchievementScreen from './components/achievements/AchievementScreen';
-import RewardScreen from './components/achievements/RewardScreen';
-import GameModeSelector from './components/modes/GameModeSelector';
-import GameModeUI from './components/modes/GameModeUI';
-import GameModeResults from './components/modes/GameModeResults';
-import AchievementNotification from './components/achievements/AchievementNotification';
+// Feature Branch Components (optional - will be created when needed)
+// import StoreScreen from './components/monetization/StoreScreen';
+// import LightningPassScreen from './components/monetization/LightningPassScreen';
+// import AchievementScreen from './components/achievements/AchievementScreen';
+// import RewardScreen from './components/achievements/RewardScreen';
+// import GameModeSelector from './components/modes/GameModeSelector';
+// import GameModeUI from './components/modes/GameModeUI';
+// import GameModeResults from './components/modes/GameModeResults';
+// import AchievementNotification from './components/achievements/AchievementNotification';
 
 // Services
 import WordService from './services/WordService';
@@ -363,10 +363,6 @@ export default function MainApp() {
             gameState={gameState}
             onStartGame={() => startGame()}
             onShowRules={() => gameState.toggleRules()}
-            onShowStore={() => setAppState(prev => ({ ...prev, showStore: true }))}
-            onShowAchievements={() => setAppState(prev => ({ ...prev, showAchievements: true }))}
-            onShowRewards={() => setAppState(prev => ({ ...prev, showRewards: true }))}
-            onShowGameModes={() => setAppState(prev => ({ ...prev, showGameModes: true }))}
           />
         );
 
@@ -422,88 +418,6 @@ export default function MainApp() {
   const renderModals = () => {
     return (
       <>
-        {/* Achievement Notifications */}
-        {appState.recentAchievements.map((achievement, index) => (
-          <AchievementNotification
-            key={index}
-            achievement={achievement}
-            visible={true}
-            onDismiss={() => {
-              setAppState(prev => ({
-                ...prev,
-                recentAchievements: prev.recentAchievements.filter((_, i) => i !== index)
-              }));
-            }}
-          />
-        ))}
-
-        {/* Store Screen */}
-        {appState.showStore && (
-          <StoreScreen
-            onBack={() => setAppState(prev => ({ ...prev, showStore: false }))}
-            userCoins={appState.userStats.coins}
-            userHints={appState.userStats.hints}
-            userLives={appState.userStats.lives}
-          />
-        )}
-
-        {/* Lightning Pass Screen */}
-        {appState.showLightningPass && (
-          <LightningPassScreen
-            onBack={() => setAppState(prev => ({ ...prev, showLightningPass: false }))}
-          />
-        )}
-
-        {/* Achievement Screen */}
-        {appState.showAchievements && (
-          <AchievementScreen
-            onBack={() => setAppState(prev => ({ ...prev, showAchievements: false }))}
-          />
-        )}
-
-        {/* Reward Screen */}
-        {appState.showRewards && (
-          <RewardScreen
-            onBack={() => setAppState(prev => ({ ...prev, showRewards: false }))}
-            playerLevel={appState.userStats.level}
-          />
-        )}
-
-        {/* Game Mode Selector */}
-        {appState.showGameModes && (
-          <GameModeSelector
-            onBack={() => setAppState(prev => ({ ...prev, showGameModes: false }))}
-            onModeSelect={(mode) => {
-              setAppState(prev => ({ ...prev, showGameModes: false }));
-              startGame(mode.id);
-            }}
-            playerLevel={appState.userStats.level}
-            playerStats={{}}
-          />
-        )}
-
-        {/* Game Mode Results */}
-        {appState.showGameModeResults && (
-          <GameModeResults
-            gameData={{}}
-            modeConfig={{}}
-            onPlayAgain={() => {
-              setAppState(prev => ({ ...prev, showGameModeResults: false }));
-              startGame(appState.currentGameMode);
-            }}
-            onBackToModes={() => setAppState(prev => ({ 
-              ...prev, 
-              showGameModeResults: false,
-              showGameModes: true 
-            }))}
-            onMainMenu={() => setAppState(prev => ({ 
-              ...prev, 
-              showGameModeResults: false,
-              currentScreen: 'start' 
-            }))}
-          />
-        )}
-
         {/* Rules Screen */}
         {gameState.showRules && (
           <RulesScreen 

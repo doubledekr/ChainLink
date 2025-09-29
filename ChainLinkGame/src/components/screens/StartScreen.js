@@ -45,38 +45,38 @@ const StartScreen = ({
           </TouchableOpacity>
         )}
         
-        {/* Feature Buttons */}
+        {/* Feature Buttons - Coming Soon */}
         <View style={styles.featureButtons}>
           <TouchableOpacity 
-            style={styles.featureButton}
-            onPress={onShowGameModes}
+            style={[styles.featureButton, styles.comingSoonButton]}
             activeOpacity={0.8}
           >
             <Text style={styles.featureButtonText}>🎮 Game Modes</Text>
+            <Text style={styles.comingSoonText}>Coming Soon</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.featureButton}
-            onPress={onShowAchievements}
+            style={[styles.featureButton, styles.comingSoonButton]}
             activeOpacity={0.8}
           >
             <Text style={styles.featureButtonText}>🏆 Achievements</Text>
+            <Text style={styles.comingSoonText}>Coming Soon</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.featureButton}
-            onPress={onShowRewards}
+            style={[styles.featureButton, styles.comingSoonButton]}
             activeOpacity={0.8}
           >
             <Text style={styles.featureButtonText}>🎁 Daily Rewards</Text>
+            <Text style={styles.comingSoonText}>Coming Soon</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.featureButton}
-            onPress={onShowStore}
+            style={[styles.featureButton, styles.comingSoonButton]}
             activeOpacity={0.8}
           >
             <Text style={styles.featureButtonText}>🛒 Store</Text>
+            <Text style={styles.comingSoonText}>Coming Soon</Text>
           </TouchableOpacity>
         </View>
         
@@ -109,12 +109,23 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
     marginHorizontal: 5,
     marginVertical: 5,
+    alignItems: 'center',
+  },
+  comingSoonButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   featureButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  comingSoonText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 10,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
 });
 
