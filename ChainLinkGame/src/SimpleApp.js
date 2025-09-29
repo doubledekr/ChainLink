@@ -10,10 +10,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Font from 'expo-font';
 
-// Integration Components
-import AppInitializer from './components/integration/AppInitializer';
-import FeatureFlagDebugger from './components/integration/FeatureFlagDebugger';
-
 // Core Game Components
 import GameScreen from './components/screens/GameScreen';
 import StartScreen from './components/screens/StartScreen';
@@ -22,23 +18,13 @@ import RulesScreen from './components/screens/RulesScreen';
 
 // New Feature Components
 import StoreScreen from './components/monetization/StoreScreen';
-import LightningPassScreen from './components/monetization/LightningPassScreen';
 import AchievementScreen from './components/achievements/AchievementScreen';
 import RewardScreen from './components/achievements/RewardScreen';
 import GameModeSelector from './components/modes/GameModeSelector';
-import GameModeUI from './components/modes/GameModeUI';
-import GameModeResults from './components/modes/GameModeResults';
 import AchievementNotification from './components/achievements/AchievementNotification';
 
 // Services
-import SimpleIntegrationService from './services/SimpleIntegrationService';
 import WordService from './services/WordService';
-import GameModeService from './services/GameModeService';
-import AchievementService from './services/AchievementService';
-import RewardService from './services/RewardService';
-import AdService from './services/AdService';
-import IAPService from './services/IAPService';
-import LightningPassService from './services/LightningPassService';
 
 // Hooks
 import { useGameState } from './hooks/useGameState';
@@ -51,24 +37,17 @@ import { globalStyles } from './styles/globalStyles';
 import { GAME_CONFIG, SCORING, ANIMATIONS } from './utils/constants';
 
 /**
- * IntegratedApp - Main application with all new features integrated
+ * SimpleApp - Simplified version with basic new features
  */
-export default function IntegratedApp() {
+export default function SimpleApp() {
   const [appState, setAppState] = useState({
-    phase: 'initializing',
-    integrationService: null,
     fontLoaded: false,
     currentScreen: 'start',
-    showDebugger: false,
     showStore: false,
-    showLightningPass: false,
     showAchievements: false,
     showRewards: false,
     showGameModes: false,
-    showGameModeResults: false,
-    currentGameMode: null,
-    currentGameModeInstance: null,
-    recentAchievements: [],
+    servicesInitialized: false,
     userStats: {
       coins: 1000,
       hints: 5,
@@ -82,8 +61,27 @@ export default function IntegratedApp() {
   const timer = useTimer(() => handleTimeOut());
 
   useEffect(() => {
-    loadFonts();
+    initializeApp();
   }, []);
+
+  /**
+   * Initialize the app
+   */
+  const initializeApp = async () => {
+    try {
+      console.log('SimpleApp: Initializing...');
+      
+      // Load fonts
+      await loadFonts();
+      
+      // Initialize basic services
+      await initializeServices();
+      
+      console.log('SimpleApp: Initialization complete');
+    } catch (error) {
+      console.error('SimpleApp: Initialization failed:', error);
+    }
+  };
 
   /**
    * Load fonts
@@ -101,44 +99,28 @@ export default function IntegratedApp() {
   };
 
   /**
-   * Handle initialization completion
+   * Initialize basic services
    */
-  const handleInitializationComplete = (integrationService) => {
-    console.log('App initialization completed');
-    setAppState(prev => ({
-      ...prev,
-      phase: 'ready',
-      integrationService: integrationService
-    }));
-
-    // Load user stats from services
-    loadUserStats(integrationService);
-  };
-
-  /**
-   * Handle initialization error
-   */
-  const handleInitializationError = (error) => {
-    console.error('App initialization failed:', error);
-    Alert.alert(
-      'Initialization Error',
-      'Failed to initialize the app. Some features may not be available.',
-      [{ text: 'OK' }]
-    );
-    setAppState(prev => ({ ...prev, phase: 'ready' }));
-  };
-
-  /**
-   * Load user stats from services
-   */
-  const loadUserStats = async (integrationService) => {
+  const initializeServices = async () => {
     try {
-      const achievementService = integrationService.getService('achievement');
-      const rewardService = integrationService.getService('reward');
-      const iapService = integrationService.getService('iap');
-      const lightningPassService = integrationService.getService('lightningPass');
+      // Initialize WordService
+      await WordService.initialize();
+      
+      // Load user stats
+      await loadUserStats();
+      
+      setAppState(prev => ({ ...prev, servicesInitialized: true }));
+      console.log('SimpleApp: Services initialized');
+    } catch (error) {
+      console.error('SimpleApp: Service initialization failed:', error);
+    }
+  };
 
-      // Load user stats from AsyncStorage
+  /**
+   * Load user stats from storage
+   */
+  const loadUserStats = async () => {
+    try {
       const coins = await loadFromStorage('user_coins', 1000);
       const hints = await loadFromStorage('user_hints', 5);
       const lives = await loadFromStorage('user_lives', 3);
@@ -149,13 +131,6 @@ export default function IntegratedApp() {
         ...prev,
         userStats: { coins, hints, lives, level, xp }
       }));
-
-      // Check for recent achievements
-      if (achievementService) {
-        const recentAchievements = achievementService.getRecentAchievements(3);
-        setAppState(prev => ({ ...prev, recentAchievements }));
-      }
-
     } catch (error) {
       console.error('Failed to load user stats:', error);
     }
@@ -174,42 +149,15 @@ export default function IntegratedApp() {
   };
 
   /**
-   * Start game with selected mode
+   * Start game
    */
-  const startGame = async (modeId = 'SINGLE') => {
+  const startGame = async () => {
     try {
-      const integrationService = appState.integrationService;
-      if (!integrationService) {
-        console.error('Integration service not available');
-        return;
-      }
-
-      const gameModeService = integrationService.getService('gameMode');
-      const achievementService = integrationService.getService('achievement');
-      const analyticsService = integrationService.getService('analytics');
-
-      // Initialize game mode
-      let modeInstance = null;
-      if (modeId !== 'SINGLE') {
-        modeInstance = gameModeService.getModeInstance(modeId);
-        if (modeInstance) {
-          await modeInstance.initialize();
-        }
-      }
-
-      // Track game start
-      if (analyticsService) {
-        analyticsService.trackGameStart(modeId, 'normal');
-      }
-
+      console.log('Starting game...');
+      
       // Start the game
       gameState.startGame();
-      setAppState(prev => ({
-        ...prev,
-        currentScreen: 'game',
-        currentGameMode: modeId,
-        currentGameModeInstance: modeInstance
-      }));
+      setAppState(prev => ({ ...prev, currentScreen: 'game' }));
 
       // Generate initial puzzle
       const puzzleData = await WordService.generateFreshPuzzle();
@@ -230,54 +178,8 @@ export default function IntegratedApp() {
    */
   const handleGameEnd = async () => {
     try {
-      const integrationService = appState.integrationService;
-      if (!integrationService) {
-        return;
-      }
-
-      const gameModeService = integrationService.getService('gameMode');
-      const achievementService = integrationService.getService('achievement');
-      const analyticsService = integrationService.getService('analytics');
-
-      // End game mode if active
-      if (appState.currentGameModeInstance) {
-        const gameData = await appState.currentGameModeInstance.endGame();
-        setAppState(prev => ({
-          ...prev,
-          showGameModeResults: true,
-          gameModeResults: gameData
-        }));
-      }
-
-      // Track game end
-      if (analyticsService) {
-        analyticsService.trackGameEnd(
-          appState.currentGameMode || 'SINGLE',
-          gameState.score,
-          timer.getTimePlayed(),
-          gameState.solved
-        );
-      }
-
-      // Check for new achievements
-      if (achievementService) {
-        const gameData = {
-          finalScore: gameState.score,
-          puzzlesCompleted: gameState.solved,
-          timePlayed: timer.getTimePlayed(),
-          bestStreak: gameState.streak
-        };
-
-        const newAchievements = await achievementService.checkForNewAchievements(gameData);
-        
-        if (newAchievements.length > 0) {
-          setAppState(prev => ({
-            ...prev,
-            recentAchievements: newAchievements
-          }));
-        }
-      }
-
+      console.log('Game ended');
+      
       // Show game over screen
       setAppState(prev => ({ ...prev, currentScreen: 'gameOver' }));
 
@@ -462,7 +364,7 @@ export default function IntegratedApp() {
         return (
           <StartScreen 
             gameState={gameState}
-            onStartGame={() => startGame()}
+            onStartGame={startGame}
             onShowRules={() => gameState.toggleRules()}
             onShowStore={() => setAppState(prev => ({ ...prev, showStore: true }))}
             onShowAchievements={() => setAppState(prev => ({ ...prev, showAchievements: true }))}
@@ -473,34 +375,26 @@ export default function IntegratedApp() {
 
       case 'game':
         return (
-          <View style={globalStyles.fullScreenContainer}>
-            {appState.currentGameModeInstance && (
-              <GameModeUI 
-                modeInstance={appState.currentGameModeInstance}
-                modeConfig={GameModeService.getGameMode(appState.currentGameMode)}
-              />
-            )}
-            <GameScreen 
-              gameState={gameState}
-              timer={timer}
-              animations={{
-                confirmAnim: { value: 1 },
-                keyPressAnim: { value: 1 },
-                streakAnim: { value: 0 },
-                successMessageAnim: { value: 0 }
-              }}
-              onKeyPress={handleKeyPress}
-              onSkipPuzzle={skipPuzzle}
-              onShowRules={() => gameState.toggleRules()}
-            />
-          </View>
+          <GameScreen 
+            gameState={gameState}
+            timer={timer}
+            animations={{
+              confirmAnim: { value: 1 },
+              keyPressAnim: { value: 1 },
+              streakAnim: { value: 0 },
+              successMessageAnim: { value: 0 }
+            }}
+            onKeyPress={handleKeyPress}
+            onSkipPuzzle={skipPuzzle}
+            onShowRules={() => gameState.toggleRules()}
+          />
         );
 
       case 'gameOver':
         return (
           <GameOverScreen 
             gameState={gameState} 
-            onPlayAgain={() => startGame(appState.currentGameMode)} 
+            onPlayAgain={startGame} 
             onShowStore={() => setAppState(prev => ({ ...prev, showStore: true }))}
             onShowAchievements={() => setAppState(prev => ({ ...prev, showAchievements: true }))}
           />
@@ -510,7 +404,7 @@ export default function IntegratedApp() {
         return (
           <StartScreen 
             gameState={gameState}
-            onStartGame={() => startGame()}
+            onStartGame={startGame}
             onShowRules={() => gameState.toggleRules()}
           />
         );
@@ -523,21 +417,6 @@ export default function IntegratedApp() {
   const renderModals = () => {
     return (
       <>
-        {/* Achievement Notifications */}
-        {appState.recentAchievements.map((achievement, index) => (
-          <AchievementNotification
-            key={index}
-            achievement={achievement}
-            visible={true}
-            onDismiss={() => {
-              setAppState(prev => ({
-                ...prev,
-                recentAchievements: prev.recentAchievements.filter((_, i) => i !== index)
-              }));
-            }}
-          />
-        ))}
-
         {/* Store Screen */}
         {appState.showStore && (
           <StoreScreen
@@ -545,13 +424,6 @@ export default function IntegratedApp() {
             userCoins={appState.userStats.coins}
             userHints={appState.userStats.hints}
             userLives={appState.userStats.lives}
-          />
-        )}
-
-        {/* Lightning Pass Screen */}
-        {appState.showLightningPass && (
-          <LightningPassScreen
-            onBack={() => setAppState(prev => ({ ...prev, showLightningPass: false }))}
           />
         )}
 
@@ -574,41 +446,12 @@ export default function IntegratedApp() {
         {appState.showGameModes && (
           <GameModeSelector
             onBack={() => setAppState(prev => ({ ...prev, showGameModes: false }))}
-            onModeSelect={(mode, modeInstance) => {
+            onModeSelect={(mode) => {
               setAppState(prev => ({ ...prev, showGameModes: false }));
-              startGame(mode.id);
+              startGame();
             }}
             playerLevel={appState.userStats.level}
             playerStats={{}}
-          />
-        )}
-
-        {/* Game Mode Results */}
-        {appState.showGameModeResults && appState.gameModeResults && (
-          <GameModeResults
-            gameData={appState.gameModeResults}
-            modeConfig={GameModeService.getGameMode(appState.currentGameMode)}
-            onPlayAgain={() => {
-              setAppState(prev => ({ ...prev, showGameModeResults: false }));
-              startGame(appState.currentGameMode);
-            }}
-            onBackToModes={() => setAppState(prev => ({ 
-              ...prev, 
-              showGameModeResults: false,
-              showGameModes: true 
-            }))}
-            onMainMenu={() => setAppState(prev => ({ 
-              ...prev, 
-              showGameModeResults: false,
-              currentScreen: 'start' 
-            }))}
-          />
-        )}
-
-        {/* Feature Flag Debugger */}
-        {appState.showDebugger && (
-          <FeatureFlagDebugger
-            onBack={() => setAppState(prev => ({ ...prev, showDebugger: false }))}
           />
         )}
 
@@ -623,14 +466,14 @@ export default function IntegratedApp() {
     );
   };
 
-  // Show initialization screen
-  if (appState.phase === 'initializing' || !appState.fontLoaded) {
+  // Show loading screen
+  if (!appState.fontLoaded || !appState.servicesInitialized) {
     return (
       <SafeAreaProvider>
-        <AppInitializer
-          onInitializationComplete={handleInitializationComplete}
-          onInitializationError={handleInitializationError}
-        />
+        <View style={[globalStyles.fullScreenContainer, globalStyles.centered]}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={styles.loadingText}>Loading ChainLink...</Text>
+        </View>
       </SafeAreaProvider>
     );
   }
@@ -645,3 +488,11 @@ export default function IntegratedApp() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingText: {
+    color: 'white',
+    fontSize: 16,
+    marginTop: 16,
+  },
+});

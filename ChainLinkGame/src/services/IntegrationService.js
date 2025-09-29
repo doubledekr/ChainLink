@@ -20,15 +20,15 @@ class IntegrationService {
   constructor() {
     this.isInitialized = false;
     this.services = {
-      gameMode: new GameModeService(),
-      ad: new AdService(),
-      iap: new IAPService(),
-      lightningPass: new LightningPassService(),
-      achievement: new AchievementService(),
-      reward: new RewardService(),
-      featureFlag: new FeatureFlagService(),
-      analytics: new AnalyticsService(),
-      performance: new PerformanceService()
+      gameMode: GameModeService,
+      ad: AdService,
+      iap: IAPService,
+      lightningPass: LightningPassService,
+      achievement: AchievementService,
+      reward: RewardService,
+      featureFlag: FeatureFlagService,
+      analytics: AnalyticsService,
+      performance: PerformanceService
     };
     this.serviceDependencies = {
       gameMode: [],

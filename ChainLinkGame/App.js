@@ -1,4 +1,4 @@
 import React from 'react';
-import IntegratedApp from './src/IntegratedApp';
+import SimpleApp from './src/SimpleApp';
 
-export default IntegratedApp;
+export default SimpleApp;

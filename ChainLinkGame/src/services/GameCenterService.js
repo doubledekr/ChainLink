@@ -24,6 +24,11 @@ class GameCenterService {
       }
 
       // Check if Game Center is available
+      if (!GameCenter || typeof GameCenter.isAvailable !== 'function') {
+        console.log('Game Center library not properly installed or configured');
+        return false;
+      }
+
       const isAvailable = await GameCenter.isAvailable();
       if (!isAvailable) {
         console.log('Game Center is not available on this device');
