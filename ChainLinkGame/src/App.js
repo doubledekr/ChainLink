@@ -120,9 +120,9 @@ export default function App() {
 
   // Game logic functions
   const startGame = async () => {
-    console.log('🎮 Starting new game - initial roundsRemaining:', gameState.roundsRemaining);
+    console.log('🎮 Starting new game');
     gameState.startGame();
-    console.log('🎮 After startGame() - roundsRemaining:', gameState.roundsRemaining);
+    console.log('🎮 After startGame() - roundsRemaining should be 10');
     
     // Generate initial puzzle
     console.log('🎮 Generating initial puzzle...');
@@ -172,38 +172,44 @@ export default function App() {
     
     gameState.setCurrentPuzzle(prev => prev + 1);
     
-    // Update rounds - use current value to determine next state
-    const currentRounds = gameState.roundsRemaining;
-    console.log('🎮 Using currentRounds for logic:', currentRounds);
-    
-    if (currentRounds > 1) {
-      console.log('🎮 Decreasing rounds remaining from', currentRounds, 'to', currentRounds - 1);
-      gameState.setRoundsRemaining(currentRounds - 1);
-    } else if (currentRounds === 1) {
-      if (correctAnswer && !gameState.bonusRounds) {
-        console.log('🎮 Entering bonus rounds - user got perfect answer on final round');
-        gameState.setBonusRounds(true);
-        gameState.setRoundsRemaining(0);
-      } else {
-        console.log('🎮 Game should end - 10 rounds completed without perfect streak');
-        gameState.endGame();
-        return;
-      }
-    } else if (currentRounds <= 0) {
-      if (gameState.bonusRounds) {
-        if (correctAnswer) {
-          console.log('🎮 Bonus round continues - correct answer');
+    // Use functional state updates to ensure we get the current value
+    gameState.setRoundsRemaining(prevRounds => {
+      console.log('🎮 Current rounds from state:', prevRounds);
+      
+      if (prevRounds > 1) {
+        const newRounds = prevRounds - 1;
+        console.log('🎮 Decreasing rounds remaining from', prevRounds, 'to', newRounds);
+        return newRounds;
+      } else if (prevRounds === 1) {
+        if (correctAnswer && !gameState.bonusRounds) {
+          console.log('🎮 Entering bonus rounds - user got perfect answer on final round');
+          gameState.setBonusRounds(true);
+          return 0;
         } else {
-          console.log('🎮 Bonus round ends - wrong answer or timeout');
-          gameState.endGame();
-          return;
+          console.log('🎮 Game should end - 10 rounds completed without perfect streak');
+          // End game after state update
+          setTimeout(() => gameState.endGame(), 0);
+          return 0;
         }
-      } else {
-        console.log('🎮 ERROR: Negative rounds without bonus - ending game');
-        gameState.endGame();
-        return;
+      } else if (prevRounds <= 0) {
+        if (gameState.bonusRounds) {
+          if (correctAnswer) {
+            console.log('🎮 Bonus round continues - correct answer');
+            return 0;
+          } else {
+            console.log('🎮 Bonus round ends - wrong answer or timeout');
+            setTimeout(() => gameState.endGame(), 0);
+            return 0;
+          }
+        } else {
+          console.log('🎮 ERROR: Negative rounds without bonus - ending game');
+          setTimeout(() => gameState.endGame(), 0);
+          return 0;
+        }
       }
-    }
+      
+      return prevRounds; // Fallback
+    });
     
     // Get new words for chaining
     const newStartWords = await WordService.fetchWordsForChaining(1, gameState.solved, [gameState.startWord, gameState.endWord]);
