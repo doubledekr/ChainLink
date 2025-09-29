@@ -1,4 +1,4 @@
 import React from 'react';
-import MainApp from './src/MainApp';
+import App from './src/App';
 
-export default MainApp;
+export default App;
