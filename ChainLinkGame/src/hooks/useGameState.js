@@ -2,11 +2,13 @@ import { useState, useRef } from 'react';
 import { GAME_CONFIG, GAME_MODES } from '../utils/constants';
 import { useLeaderboards } from './useLeaderboards';
 import { useUserProfile } from './useUserProfile';
+import { useDailyChallenges } from './useDailyChallenges';
 
 export const useGameState = () => {
-  // Leaderboard and profile hooks
+  // Leaderboard, profile, and daily challenges hooks
   const leaderboards = useLeaderboards();
   const userProfile = useUserProfile();
+  const dailyChallenges = useDailyChallenges();
   
   // Game state
   const [gameActive, setGameActive] = useState(false);
@@ -72,6 +74,11 @@ export const useGameState = () => {
     setShowGameOver(false);
     setCurrentWord('');
     setError(null);
+    
+    // Start daily challenge tracking
+    if (dailyChallenges.isInitialized) {
+      dailyChallenges.startChallengeTracking();
+    }
   };
 
   /**
@@ -99,7 +106,8 @@ export const useGameState = () => {
         solveTime: 30, // Placeholder - should be calculated from actual game time
         won: score > 0,
         perfectGame: streak === solved && solved > 0,
-        gamesPlayed: 1
+        gamesPlayed: 1,
+        wordsUsed: solved // Track words used for challenges
       };
 
       // Submit to leaderboards
@@ -110,6 +118,11 @@ export const useGameState = () => {
       // Update user profile
       if (userProfile.isInitialized) {
         await userProfile.updateGameStats(gameData);
+      }
+
+      // Complete daily challenge tracking
+      if (dailyChallenges.isInitialized) {
+        await dailyChallenges.completeGame();
       }
 
       console.log('✅ Game data submitted successfully');
@@ -146,7 +159,16 @@ export const useGameState = () => {
    * Increment the current streak
    */
   const incrementStreak = () => {
-    setStreak(prev => prev + 1);
+    setStreak(prev => {
+      const newStreak = prev + 1;
+      
+      // Update daily challenge tracking
+      if (dailyChallenges.isInitialized) {
+        dailyChallenges.updateStreak(newStreak);
+      }
+      
+      return newStreak;
+    });
   };
 
   /**
@@ -176,6 +198,11 @@ export const useGameState = () => {
    */
   const updateCurrentWord = (word) => {
     setCurrentWord(word);
+    
+    // Track word usage for daily challenges
+    if (dailyChallenges.isInitialized && word) {
+      dailyChallenges.trackWordUsed(word);
+    }
   };
 
   /**
@@ -281,9 +308,10 @@ export const useGameState = () => {
     setMultiplayerInitializedState,
     setGameModeState,
     
-    // Leaderboard integration
+    // Integration services
     leaderboards,
     userProfile,
+    dailyChallenges,
     submitGameData,
     
     // Setters for direct state updates (when needed)
