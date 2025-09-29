@@ -1,7 +1,13 @@
 import { useState, useRef } from 'react';
 import { GAME_CONFIG, GAME_MODES } from '../utils/constants';
+import { useLeaderboards } from './useLeaderboards';
+import { useUserProfile } from './useUserProfile';
 
 export const useGameState = () => {
+  // Leaderboard and profile hooks
+  const leaderboards = useLeaderboards();
+  const userProfile = useUserProfile();
+  
   // Game state
   const [gameActive, setGameActive] = useState(false);
   const [gameMode, setGameMode] = useState(GAME_MODES.SINGLE);
@@ -71,11 +77,45 @@ export const useGameState = () => {
   /**
    * End the current game
    */
-  const endGame = () => {
+  const endGame = async () => {
     console.log('🎮 Ending game - setting gameActive to false');
     setGameActive(false);
     gameActiveRef.current = false;
     setShowGameOver(true);
+    
+    // Submit game data to leaderboards and user profile
+    await submitGameData();
+  };
+
+  /**
+   * Submit game data to leaderboards and update user profile
+   */
+  const submitGameData = async () => {
+    try {
+      const gameData = {
+        finalScore: score,
+        weeklyScore: score, // This will be accumulated in the service
+        streakRecord: streak,
+        solveTime: 30, // Placeholder - should be calculated from actual game time
+        won: score > 0,
+        perfectGame: streak === solved && solved > 0,
+        gamesPlayed: 1
+      };
+
+      // Submit to leaderboards
+      if (leaderboards.isInitialized) {
+        await leaderboards.submitGameScores(gameData);
+      }
+
+      // Update user profile
+      if (userProfile.isInitialized) {
+        await userProfile.updateGameStats(gameData);
+      }
+
+      console.log('✅ Game data submitted successfully');
+    } catch (error) {
+      console.error('❌ Failed to submit game data:', error);
+    }
   };
 
   /**
@@ -240,6 +280,11 @@ export const useGameState = () => {
     updatePuzzleProgress,
     setMultiplayerInitializedState,
     setGameModeState,
+    
+    // Leaderboard integration
+    leaderboards,
+    userProfile,
+    submitGameData,
     
     // Setters for direct state updates (when needed)
     setGameActive,
